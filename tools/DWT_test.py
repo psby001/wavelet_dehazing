@@ -11,7 +11,7 @@ from wavelet import wt_m,iwt_m
 xfm = wt_m(wave='db1')
 ifm = iwt_m(wave='db1')
 
-img_1 = plt.imread('0068_1_0.16.jpg')
+img_1 = plt.imread('4.jpg')
 # img_1 = pywt.data.camera()
 # img_2 = pywt.data.ascent()
 # img = np.stack([img_1, img_2], 0)

@@ -1,16 +1,78 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import argparse
 from SWT import SWTForward,SWTInverse
 from wavelet import wt_m,iwt_m
 
 
+class resblock(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.resconv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1)
+
+        self.block1 = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, 3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU()
+        )
+
+        self.block2 = nn.Sequential(
+            nn.Conv2d(out_channels, out_channels, 3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU()
+        )
+
+        self.block3 = nn.Sequential(
+            nn.Conv2d(out_channels, out_channels, 3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU()
+        )
+
+        self.block4 = nn.Sequential(
+            nn.Conv2d(out_channels, out_channels, 3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU()
+        )
+
+        self.act = nn.ReLU()
+        self.act2 = nn.Sigmoid()
+
+        self.global_pool = nn.AdaptiveAvgPool2d(1)
+        self.fc1 = nn.Linear(out_channels, (out_channels // 2))
+        self.fc2 = nn.Linear((out_channels // 2), out_channels)
+
+    def forward(self, x):
+        res = self.resconv(x)
+        out1 = self.block1(x)
+
+        out2 = self.block2(out1)
+        out2_res = out2 + res
+        out3 = self.block3(out2_res)
+
+        out4 = self.block4(out3)
+        # SE block part
+        SEout = self.global_pool(out4)
+        # permute to linear shape
+        # (batch, channels, H, W) --> (batch, H, W, channels)
+        SEout = SEout.permute(0, 2, 3, 1)
+        SEout = self.fc1(SEout)
+        SEout = self.act(SEout)
+        SEout = self.fc2(SEout)
+        SEout = self.act2(SEout)
+        # recover to (batch, channels, H, W)
+        SEout = SEout.permute(0, 3, 1, 2)
+
+        out4 = out4 * SEout
+
+        return out4 + out2_res
+
 class UNet_wavelet(nn.Module):
-    def __init__(self, in_channels=12, out_channels=12):
+    def __init__(self, in_channels=12, out_channels=12,block =resblock):
         super(UNet_wavelet, self).__init__()
 
         # 下採樣層
-        self.encoder = FSnet(in_channels)
+        self.encoder = FSnet(in_channels,wl=True,block = block)
         # self.encoder = FSnet_Sc(in_channels,wl=True)
 
         self.xfm = wt_m(requires_grad=False) # Accepts all wave types available to PyWavelets
@@ -18,8 +80,9 @@ class UNet_wavelet(nn.Module):
         self.ifm = iwt_m(requires_grad=False)
         # self.ifm = SWTInverse(requires_grad=False)
 
-        self.ll_decoder = decoder(out_channels=3)
-        self.detail_decoder = decoder(out_channels=9,out_act=nn.Tanh())
+        self.ll_decoder = decoder(out_channels=3,block = block)
+        # self.detail_decoder = decoder(out_channels=9,out_act=nn.Tanh(),block = block)
+        self.detail_decoder = decoder(out_channels=9,out_act=nn.Identity(),block = block)
 
         # self.scale1_decode = nn.Sequential(
         #     nn.Conv2d(128, 64, 3, padding="same"),
@@ -170,18 +233,18 @@ class UNet_wavelet(nn.Module):
 
 
 class decoder(nn.Module):
-    def __init__(self, in_channels=[150,149,149], out_channels=3,out_act = nn.ELU()):
+    def __init__(self, in_channels=[150,150,150], out_channels=3,out_act = nn.ELU(),block = resblock):
         super(decoder, self).__init__()
         self.xfm = wt_m(requires_grad=False)  # Accepts all wave types available to PyWavelets
         self.ifm = iwt_m(requires_grad=False)
 
-        self.decoder3 = resblock(in_channels[0] + 256, 256)
-        self.decoder2 = resblock(in_channels[1] + 128, 128)
-        self.decoder1 = resblock(in_channels[2] + 64, 64)
-        # self.decoder0 = resblock(3 + 32, 32)
+        self.decoder3 = block(in_channels[0] + 256, 256)
+        self.decoder2 = block(in_channels[1] + 128, 128)
+        self.decoder1 = block(in_channels[2] + 64, 64)
+        # self.decoder0 = block(3 + 32, 32)
 
         self.out = nn.Sequential(
-            nn.Conv2d(149 + 64, 32, 1),
+            nn.Conv2d(in_channels[2] + 64, 32, 1),
             nn.BatchNorm2d(32),
             nn.ELU(),
             nn.Conv2d(32, out_channels, 1),
@@ -216,21 +279,21 @@ class decoder(nn.Module):
 
 
 class UNet(nn.Module):
-    def __init__(self,in_channels=3,out_channels=3):
+    def __init__(self,in_channels=3,out_channels=3,block = resblock):
         super(UNet, self).__init__()
 
         # 下採樣層
-        self.encoder = FSnet(in_channels)
+        self.encoder = FSnet(in_channels,block =block)
 
         # 中間層
         
         # 上採樣層
-        self.decoder3 = resblock(406, 256)
-        self.decoder2 = resblock(277, 128)
-        self.decoder1 = resblock(213, 64)
+        self.decoder3 = block(406, 256)
+        self.decoder2 = block(278, 128)
+        self.decoder1 = block(214, 64)
         self.out = nn.Sequential(
             nn.Conv2d(64, out_channels, 1),
-            nn.Sigmoid()
+            # nn.Sigmoid()
         )
     
         self.up_conv4 = nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2)
@@ -258,6 +321,7 @@ class UNet(nn.Module):
             dec1_in = torch.cat((dec2_up, dec1_skip), dim=1)
             output1 = self.decoder1(dec1_in)
             output1 = self.out(output1)
+            output1 = torch.clamp(output1, 0, 1.0)
 
             # return output1
             return (output1,enc1, enc2, enc3, enc4)
@@ -265,25 +329,26 @@ class UNet(nn.Module):
             return (enc1, enc2, enc3, enc4)
 
 
-class resblock(nn.Module):
+
+class rescspblock(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
         self.resconv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1)
-        
+
         self.block1 = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 3, padding=1),
-            nn.BatchNorm2d(out_channels),
+            nn.Conv2d(out_channels//2, out_channels//2, 3, padding=1),
+            nn.BatchNorm2d(out_channels//2),
             nn.ReLU()
         )
 
         self.block2 = nn.Sequential(
-            nn.Conv2d(out_channels, out_channels, 3, padding=1),
-            nn.BatchNorm2d(out_channels),
+            nn.Conv2d(out_channels//2, out_channels//2, 3, padding=1),
+            nn.BatchNorm2d(out_channels//2),
             nn.ReLU()
         )
 
         self.block3 = nn.Sequential(
-            nn.Conv2d(out_channels, out_channels, 3, padding=1),
+            nn.Conv2d(out_channels, out_channels, 1),
             nn.BatchNorm2d(out_channels),
             nn.ReLU()
         )
@@ -301,13 +366,14 @@ class resblock(nn.Module):
         self.fc1 = nn.Linear(out_channels, (out_channels // 2))
         self.fc2 = nn.Linear((out_channels // 2), out_channels)
 
-        
     def forward(self, x):
         res = self.resconv(x)
-        out1 = self.block1(x)
+        B,C,H,W = res.shape
+        part1,part2 = res[:,:C//2],res[:,C//2:]
+        out1 = self.block1(part1)
 
         out2 = self.block2(out1)
-        out2_res = out2 + res
+        out2_res = torch.concat([part2,out2],dim=1)
         out3 = self.block3(out2_res)
 
         out4 = self.block4(out3)
@@ -326,40 +392,112 @@ class resblock(nn.Module):
         out4 = out4 * SEout
 
         return out4 + out2_res
-    
+
+class resmspblock(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.resconv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1)
+
+        self.block1 = nn.Sequential(
+            nn.Conv2d(out_channels//2, out_channels//2, 3, padding=1),
+            nn.BatchNorm2d(out_channels//2),
+            nn.ReLU()
+        )
+
+        self.block2 = nn.Sequential(
+            nn.Conv2d(out_channels//4, out_channels//4, 3, padding=1),
+            # nn.Conv2d(out_channels//4, out_channels//4, 1),
+            nn.BatchNorm2d(out_channels//4),
+            nn.ReLU()
+        )
+
+        self.block2_fu = nn.Sequential(
+            nn.Conv2d(out_channels // 2, out_channels // 2, 1),
+            nn.BatchNorm2d(out_channels // 2),
+            nn.ReLU()
+        )
+
+        self.block3 = nn.Sequential(
+            nn.Conv2d(out_channels, out_channels, 1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU()
+        )
+
+        self.block4 = nn.Sequential(
+            nn.Conv2d(out_channels, out_channels, 3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU()
+        )
+
+        self.act = nn.ReLU()
+        self.act2 = nn.Sigmoid()
+
+        self.global_pool = nn.AdaptiveAvgPool2d(1)
+        self.fc1 = nn.Linear(out_channels, (out_channels // 2))
+        self.fc2 = nn.Linear((out_channels // 2), out_channels)
+
+    def forward(self, x):
+        res = self.resconv(x)
+        B,C,H,W = res.shape
+        part1,part2 = res[:,:C//2],res[:,C//2:]
+        out1 = self.block1(part1)
+        out1_1,out1_2 = out1[:,:C//4],out1[:,C//4:]
+
+        out1_1 = self.block2(out1_1)
+        out2 = self.block2_fu(torch.concat((out1_1,out1_2),dim=1))
+
+        out2_res = torch.concat([part2,out2],dim=1)
+        out3 = self.block3(out2_res)
+
+        out4 = self.block4(out3)
+        # SE block part
+        SEout = self.global_pool(out4)
+        # permute to linear shape
+        # (batch, channels, H, W) --> (batch, H, W, channels)
+        SEout = SEout.permute(0, 2, 3, 1)
+        SEout = self.fc1(SEout)
+        SEout = self.act(SEout)
+        SEout = self.fc2(SEout)
+        SEout = self.act2(SEout)
+        # recover to (batch, channels, H, W)
+        SEout = SEout.permute(0, 3, 1, 2)
+
+        out4 = out4 * SEout
+
+        return out4 + out2_res
 
 # level 代表哪一層，block哪一個
 class FSnet(nn.Module):
-    def __init__(self,input_channel=3,wl = False):
+    def __init__(self,input_channel=3,wl = False,block = resblock):
         super().__init__()
-        self.level1_block1 = resblock(input_channel, 64)
+        self.level1_block1 = block(input_channel, 64)
 
-        self.level1_block2 = resblock(64, 64)
+        self.level1_block2 = block(64, 64)
 
-        self.level1_block3 = resblock(96, 96)
+        self.level1_block3 = block(96, 96)
 
-        self.level1_block4 = resblock(149, 149)
+        self.level1_block4 = block(150, 150)
 
-        self.level2_block2 = resblock(64*4 if wl else 64, 128)
+        self.level2_block2 = block(64*4 if wl else 64, 128)
 
-        self.level2_block3 = resblock(96, 96)
+        self.level2_block3 = block(96, 96)
 
-        self.level2_block4 = resblock(149, 149)
+        self.level2_block4 = block(150, 150)
 
-        self.level3_block3 = resblock(128*4 if wl else 128, 256)
+        self.level3_block3 = block(128*4 if wl else 128, 258)
 
-        self.level3_block4 = resblock(150, 150)
+        self.level3_block4 = block(150, 150)
 
-        self.level4_block4 = resblock(256*4 if wl else 256, 512)
+        self.level4_block4 = block(258*4 if wl else 258, 512)
 
         if wl:
             self.down1 = self.down_sample_wl(64)
             self.down2 = self.down_sample_wl(128)
-            self.down3 = self.down_sample_wl(256)
+            self.down3 = self.down_sample_wl(258)
         else:
             self.down1 = self.down_sample(64, 64)
             self.down2 = self.down_sample(128, 128)
-            self.down3 = self.down_sample(256, 256)
+            self.down3 = self.down_sample(258, 258)
 
     def block(self, in_channels, out_channels):
         return nn.Sequential(
@@ -448,15 +586,15 @@ class FSnet(nn.Module):
 
 
 class FSnet_Sc(nn.Module):
-    def __init__(self, input_channel=3, wl=False):
+    def __init__(self, input_channel=3, wl=False,block = resblock ):
         super().__init__()
-        self.level1_block1 = resblock(input_channel, 64)
+        self.level1_block1 = block(input_channel, 64)
 
-        self.level1_block2 = resblock(64, 64)
+        self.level1_block2 = block(64, 64)
 
-        self.level1_block3 = resblock(96, 96)
+        self.level1_block3 = block(96, 96)
 
-        self.level1_block4 = resblock(149, 149)
+        self.level1_block4 = block(149, 149)
 
         self.scale1_necode = self.out = nn.Sequential(
             nn.Conv2d(12, 32, 3, padding="same"),
@@ -466,11 +604,11 @@ class FSnet_Sc(nn.Module):
             nn.ReLU(),
         )
 
-        self.level2_block2 = resblock((64 * 4 if wl else 64) + 64, 128)
+        self.level2_block2 = block((64 * 4 if wl else 64) + 64, 128)
 
-        self.level2_block3 = resblock(96, 96)
+        self.level2_block3 = block(96, 96)
 
-        self.level2_block4 = resblock(149, 149)
+        self.level2_block4 = block(149, 149)
 
         self.scale2_necode = self.out = nn.Sequential(
             nn.Conv2d(12, 32, 3, padding="same"),
@@ -480,11 +618,11 @@ class FSnet_Sc(nn.Module):
             nn.ReLU(),
         )
 
-        self.level3_block3 = resblock((128 * 4 if wl else 128) + 64, 256)
+        self.level3_block3 = block((128 * 4 if wl else 128) + 64, 256)
 
-        self.level3_block4 = resblock(150, 150)
+        self.level3_block4 = block(150, 150)
 
-        self.level4_block4 = resblock(256 * 4 if wl else 256, 512)
+        self.level4_block4 = block(256 * 4 if wl else 256, 512)
 
         if wl:
             self.down1 = self.down_sample_wl(64)

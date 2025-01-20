@@ -66,8 +66,8 @@ class CW_SSIM(torch.nn.Module):
 
     def forward(self, x, y, as_loss=True):
         assert x.shape == y.shape
-        x = x * 255
-        y = y * 255
+        # x = x * 255
+        # y = y * 255
         if as_loss:
             score = self.cw_ssim(x, y)
             return 1 - score.mean()
