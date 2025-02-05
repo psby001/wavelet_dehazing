@@ -15,8 +15,13 @@ from SWT import SWTForward
 from net import UNet,UNet_wavelet,rescspblock,resmspblock
 from wavelet import wt_m,iwt_m
 from IQA_pytorch import CW_SSIM
-
-
+import shutil
+def save_state_dict_with_model(state_dict,path,name):
+    torch.save(state_dict, os.path.join(path,name))
+    torch.save({'state_dict': state_dict}, os.path.join(path, name))
+    if not os.path.exists(os.path.join(path,'net.py')):
+        print('Saving in',path)
+        shutil.copy2('net.py', path)
 
 def check_path(path,n=0):
     if (not os.path.exists(path)) and n==0:
@@ -30,7 +35,8 @@ def check_path(path,n=0):
 def save_model(net,path,name):
     if (not os.path.exists(path)):
         os.makedirs(path)
-    torch.save(net, os.path.join(path,name))
+    # torch.save(net, os.path.join(path,save_state_dict_with_modelname))
+    save_state_dict_with_model(net.state_dict(),path,name)
 
 
 
@@ -64,7 +70,7 @@ def main(args):
 
     # criterion = torch.nn.L1Loss()
     criterion = nn.MSELoss()
-    # Cw_SsimLoss_D = CW_SSIM(imgSize=(args.TRANSFROM_SCALES//2, args.TRANSFROM_SCALES//2), channels=9, level=4, ori=8).to(device)
+    Cw_SsimLoss_D = CW_SSIM(imgSize=(args.TRANSFROM_SCALES//2, args.TRANSFROM_SCALES//2), channels=9, level=4, ori=8).to(device)
     SsimLoss = pytorch_ssim.SSIM().to(device)
 
     scaler = GradScaler()
@@ -104,7 +110,8 @@ def main(args):
         step_psnr = []
         net.train()
         optimizer.zero_grad()
-        for batch_idx, batch in tqdm.tqdm(enumerate(train_loader)):
+        pbar = tqdm.tqdm(enumerate(train_loader))
+        for batch_idx, batch in pbar:
             optimizer.zero_grad()
             step = epoch * len(train_loader) + batch_idx
             img_idx, label_idx = batch["source"] , batch["target"]
@@ -122,7 +129,7 @@ def main(args):
                     # (output_l,enc1_l, enc2_l, enc3_l, enc4_l) = net(label)
                     # loss = criterion(output_map, label)
                     # loss = 0.5 * criterion(out_ll,ll_label) + 0.5 * criterion(out_detail,detail_label) + 0.5 * criterion(out_ll_scale1,ll_scale1_label) + 0.5 * criterion(out_ll_scale2,ll_scale2_label) + criterion(output_map,label)
-                    loss = criterion(output_map, label) +  0.2 * criterion(out_ll, ll_label) +  0.2 * criterion(out_detail, detail_label)
+                    loss = criterion(output_map, label) +  0.5 * criterion(out_ll, ll_label) +  0.5 * criterion(out_detail, detail_label)
                     # loss = criterion(output_map, label) + criterion(out_ll, ll_label) + 0.1 * Cw_SsimLoss_D(out_detail,detail_label) + criterion(out_detail, detail_label)
             else:
                 with autocast(device_type="cuda", dtype=torch.float16):
@@ -140,9 +147,10 @@ def main(args):
 
 
             # loss.backward()
+            # optimizer.step()
+            # torch.nn.utils.clip_grad_norm_(net.parameters(), 0.1)
             scaler.scale(loss).backward()
             torch.nn.utils.clip_grad_norm_(net.parameters(), 0.1)
-            # optimizer.step()
             scaler.step(optimizer)
             scaler.update()
             optimizer.zero_grad()

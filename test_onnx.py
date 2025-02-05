@@ -52,6 +52,11 @@ def main(args):
     Cw_SsimLoss_L = CW_SSIM(imgSize=(args.TRANSFROM_SCALES//2, args.TRANSFROM_SCALES//2), channels=3, level=4, ori=8).to(device)
     Cw_SsimLoss_D = CW_SSIM(imgSize=(args.TRANSFROM_SCALES//2, args.TRANSFROM_SCALES//2), channels=9, level=4, ori=8).to(device)
     SsimLoss = pytorch_ssim.SSIM().to(device)
+    if args.half:
+        Cw_SsimLoss.half()
+        Cw_SsimLoss_L.half()
+        Cw_SsimLoss_D.half()
+        SsimLoss.half()
     print("test_loader", len(test_loader))
 
     total_psnr = 0.
@@ -72,14 +77,29 @@ def main(args):
     # ifm = SWTInverse()
     sfm.to(device)
     ifm.to(device)
-    model_name = "wavelet"
-    # model_name = ""
+    if args.half:
+        sfm.half()
+        ifm.half()
+    model_name = args.weight_path
+    for i in tqdm.tqdm(range(10)):
+        input_tensor = np.random.rand(1,3,args.TRANSFROM_SCALES,args.TRANSFROM_SCALES).astype(np.float32)
+        if args.half:
+            input_tensor =input_tensor.astype(np.float16)
+        ort_inputs = {model.get_inputs()[0].name: input_tensor}
+        if "wavelet" in model_name:
+            (output_map, out_ll, out_detail, dec2_out, dec3_out, enc4) = model.run(None, ort_inputs)
+        else:
+            (output_map, out_detail, dec2_out, dec3_out, enc4) = model.run(None, ort_inputs)
     for batch_idx, batch in tqdm.tqdm(enumerate(test_loader)):
         with torch.no_grad():
             img_idx, label_idx ,names= batch["source"], batch["target"],batch["filename"]
             # img = Variable(img_idx.to(device))
             img = img_idx.detach().cpu().numpy()
             label_idx = label_idx.to(device)
+            if args.half:
+                img = img.astype(np.float16)
+                label_idx = label_idx.half()
+
             if "wavelet" in model_name:
                 ort_inputs = {model.get_inputs()[0].name: img}
                 start_time = time.time()
@@ -141,6 +161,8 @@ def opt_args():
                       help='Output Path')
     args.add_argument('--TRANSFROM_SCALES', type=int, default=256,
                       help='train img size')
+    args.add_argument('--half', type=bool, default=True,
+                      help='use float16')
     return args.parse_args()
 
 
