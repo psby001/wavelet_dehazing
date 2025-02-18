@@ -34,8 +34,6 @@ def check_dir(path,n=0):
         return check_dir(path,n)
 
 
-
-
 def main(args):
     TRANSFROM_SCALES = (args.TRANSFROM_SCALES, args.TRANSFROM_SCALES)
     dataset_name = args.DATA_PATH.split('/')[-1]
@@ -158,7 +156,7 @@ def opt_args():
     args = argparse.ArgumentParser()
     args.add_argument('--DATA_PATH', type=str, default="/mnt/d/Train Data/dz_data/RESIDE-6K",
                       help='Path to Dataset')
-    args.add_argument('--weight_path', type=str, default="output/RESIDE-6K_UNet_wavelet_15/model_best.pth",
+    args.add_argument('--weight_path', type=str, default="output/RESIDE-6K_UNet_wavelet_20/model_best.pth",
                       help='Path to model weight')
     args.add_argument('--OUTPUT_PATH', type=str, default="./result",
                       help='Output Path')

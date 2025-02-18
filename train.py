@@ -55,6 +55,7 @@ def main(args):
 
     sfm = wt_m()
     # sfm = SWTForward()
+    # sfm = SWTForward()
     # net = UNet(block=resmspblock)
     net = UNet_wavelet(block=resmspblock)
     model_name = net.__class__.__name__
@@ -78,7 +79,7 @@ def main(args):
 
 
     # Optimizer
-    # optimizer = torch.optim.SGD(net.parameters(), lr=cfg.INIT_LEARNING_RATE, momentum=cfg.MOMENTUM, weight_decay=cfg.DECAY)
+    # optimizer = torch.optim.SGD(net.parameters(), lr=args.INIT_LEARNING_RATE)
     optimizer = torch.optim.AdamW(net.parameters(), lr=args.INIT_LEARNING_RATE)
 
     # Scheduler, For each 50 epoch, decay 0.1

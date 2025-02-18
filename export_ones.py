@@ -47,26 +47,47 @@ def main(args):
     if args.half:
         model = model.half()
     model.eval()
-    torch_input = torch.randn(1, 3, args.TRANSFROM_SCALES,args.TRANSFROM_SCALES).to(device)
+    torch_input = torch.randn(1, 12, args.TRANSFROM_SCALES,args.TRANSFROM_SCALES).to(device)
     if args.half:
         torch_input = torch_input.to(device).half()
+    out = model.encoder(torch_input)
 
     torch.onnx.export(
-        model,                  # model to export
+        model.encoder,                  # model to export
         (torch_input,),        # inputs of the model,
-        args.OUTPUT_ONNX,        # filename of the ONNX model
+        args.OUTPUT_ONNX+"_encoder.onnx",        # filename of the ONNX model
         input_names=["input"],  # Rename inputs for the ONNX model
         # opset_version=16,
     )
-    onnx_model = onnx.load(args.OUTPUT_ONNX)
+    onnx_model = onnx.load(args.OUTPUT_ONNX+"_encoder.onnx")
+    onnx.checker.check_model(onnx_model)
+
+    torch.onnx.export(
+        model.ll_decoder,  # model to export
+        out,  # inputs of the model,
+        args.OUTPUT_ONNX + "_ll_decoder.onnx",  # filename of the ONNX model
+        input_names=["input"],  # Rename inputs for the ONNX model
+        # opset_version=16,
+    )
+    onnx_model = onnx.load(args.OUTPUT_ONNX + "_ll_decoder.onnx")
+    onnx.checker.check_model(onnx_model)
+
+    torch.onnx.export(
+        model.detail_decoder,  # model to export
+        out,  # inputs of the model,
+        args.OUTPUT_ONNX + "_detail_decoder.onnx",  # filename of the ONNX model
+        input_names=["input"],  # Rename inputs for the ONNX model
+        # opset_version=16,
+    )
+    onnx_model = onnx.load(args.OUTPUT_ONNX + "_detail_decoder.onnx")
     onnx.checker.check_model(onnx_model)
     # onnx.checker.check_model(onnx_model)
 
 def opt_args():
     args = argparse.ArgumentParser()
-    args.add_argument('--weight_path', type=str, default="output/FSnet_66msp/model_best.pth",
+    args.add_argument('--weight_path', type=str, default="output/RESIDE-6K_UNet_wavelet_14/model_best.pth",
                       help='Path to model weight')
-    args.add_argument('--OUTPUT_ONNX', type=str, default="output_UNet_wavelet.onnx",
+    args.add_argument('--OUTPUT_ONNX', type=str, default="output_UNet_wavelet",
                       help='Output onnx')
     args.add_argument('--TRANSFROM_SCALES', type=int, default=256,
                       help='train img size')

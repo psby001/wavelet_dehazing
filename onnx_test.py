@@ -161,7 +161,7 @@ def opt_args():
                       help='Output Path')
     args.add_argument('--TRANSFROM_SCALES', type=int, default=256,
                       help='train img size')
-    args.add_argument('--half', type=bool, default=True,
+    args.add_argument('--half', type=bool, default=False,
                       help='use float16')
     return args.parse_args()
 
