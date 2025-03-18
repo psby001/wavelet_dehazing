@@ -24,7 +24,7 @@ def main(args):
         net = importlib.util.module_from_spec(spec)
         sys.modules["net"] = net
         spec.loader.exec_module(net)
-        model = net.UNet_wavelet(block=net.resmspblock)
+        model = net.UNet_wavelet()
         if args.nano:
             new_state_dict = OrderedDict()
             state_dict =torch.load(args.weight_path)["state_dict"]
@@ -64,7 +64,7 @@ def main(args):
 
 def opt_args():
     args = argparse.ArgumentParser()
-    args.add_argument('--weight_path', type=str, default="output/FSnet_66msp/model_best.pth",
+    args.add_argument('--weight_path', type=str, default="output/RESIDE-6K_UNet_wavelet_57/model_best.pth",
                       help='Path to model weight')
     args.add_argument('--OUTPUT_ONNX', type=str, default="output_UNet_wavelet.onnx",
                       help='Output onnx')
@@ -72,7 +72,7 @@ def opt_args():
                       help='train img size')
     args.add_argument('--half', type=bool, default=False,
                       help='use float16')
-    args.add_argument('--nano', type=bool, default=True,
+    args.add_argument('--nano', type=bool, default=False,
                       help='export to nano')
     return args.parse_args()
 

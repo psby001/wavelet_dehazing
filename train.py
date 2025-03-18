@@ -12,10 +12,10 @@ import matplotlib.pyplot as plt
 from torch.cuda.amp import GradScaler
 from torch import autocast
 from SWT import SWTForward
-from net import UNet,UNet_wavelet,rescspblock,resmspblock
 from wavelet import wt_m,iwt_m
 from IQA_pytorch import CW_SSIM
 import shutil
+import random
 def save_state_dict_with_model(state_dict,path,name):
     torch.save(state_dict, os.path.join(path,name))
     torch.save({'state_dict': state_dict}, os.path.join(path, name))
@@ -23,6 +23,20 @@ def save_state_dict_with_model(state_dict,path,name):
         print('Saving in',path)
         shutil.copy2('net.py', path)
 
+
+def set_seed(seed=2552, loader=None):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    try:
+        loader.sampler.generator.manual_seed(seed)
+    except AttributeError:
+        pass
 def check_path(path,n=0):
     if (not os.path.exists(path)) and n==0:
         return path
@@ -42,6 +56,7 @@ def save_model(net,path,name):
 
 
 def main(args):
+    set_seed()
     from dz_datasets.loader import PairLoader
     train_data = PairLoader(args.DATA_PATH, 'train', 'train',
                                (args.TRANSFROM_SCALES,args.TRANSFROM_SCALES))
@@ -57,7 +72,19 @@ def main(args):
     # sfm = SWTForward()
     # sfm = SWTForward()
     # net = UNet(block=resmspblock)
-    net = UNet_wavelet(block=resmspblock)
+    if args.weight_path is not None:
+        print("Loading weights from {}".format(args.MODEL_PATH))
+        import importlib
+        import sys
+        spec = importlib.util.spec_from_file_location("net", os.path.join(args.weight_path, "net.py"))
+        model = importlib.util.module_from_spec(spec)
+        sys.modules["net"] = model
+        spec.loader.exec_module(model)
+        net = model.UNet_wavelet()
+        net.load_state_dict(torch.load(args.weight_path)["state_dict"])
+    else:
+        from net import UNet_wavelet
+        net = UNet_wavelet()
     model_name = net.__class__.__name__
     print(model_name)
     dataset_name = args.DATA_PATH.split('/')[-1]
@@ -69,8 +96,8 @@ def main(args):
     net.to(device)
     sfm.to(device)
 
-    # criterion = torch.nn.L1Loss()
-    criterion = nn.MSELoss()
+    criterion1 = torch.nn.L1Loss()
+    criterion2 = nn.MSELoss()
     Cw_SsimLoss_D = CW_SSIM(imgSize=(args.TRANSFROM_SCALES//2, args.TRANSFROM_SCALES//2), channels=9, level=4, ori=8).to(device)
     SsimLoss = pytorch_ssim.SSIM().to(device)
 
@@ -79,11 +106,11 @@ def main(args):
 
 
     # Optimizer
-    # optimizer = torch.optim.SGD(net.parameters(), lr=args.INIT_LEARNING_RATE)
+    # optimizer = torch.optim.SGD(net.parameters(), lr=args.INIT_LEARNING_RATE,momentum = args.MOMENTUM, weight_decay=args.DECAY)
     optimizer = torch.optim.AdamW(net.parameters(), lr=args.INIT_LEARNING_RATE)
 
     # Scheduler, For each 50 epoch, decay 0.1
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=args.MAX_EPOCHS//3, gamma=0.1)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=MAX_ITER,
     #                                                        eta_min=INIT_LEARNING_RATE * 1e-2)
 
@@ -118,26 +145,21 @@ def main(args):
             img_idx, label_idx = batch["source"] , batch["target"]
             img = img_idx.to(device)
             label = label_idx.to(device)
-            if "wavelet" in model_name:
-                coeffs = sfm(label)
-                ll_label = coeffs[:, [0, 4, 8]]
-                # ll_scale1_label, ll_scale2_label = net.ll_scale(label)
-                detail_label = coeffs[:, [1, 2, 3, 5, 6, 7, 9, 10, 11]]
-                # label = detail_label
-                with autocast(device_type="cuda", dtype=torch.float16):
-                    (output_map, (out_ll, out_detail), dec2_out, dec3_out, enc4) = net(img)
-                    # loss = criterion(output_map, label)
-                    # (output_l,enc1_l, enc2_l, enc3_l, enc4_l) = net(label)
-                    # loss = criterion(output_map, label)
-                    # loss = 0.5 * criterion(out_ll,ll_label) + 0.5 * criterion(out_detail,detail_label) + 0.5 * criterion(out_ll_scale1,ll_scale1_label) + 0.5 * criterion(out_ll_scale2,ll_scale2_label) + criterion(output_map,label)
-                    loss = criterion(output_map, label) +  0.5 * criterion(out_ll, ll_label) +  0.5 * criterion(out_detail, detail_label)
-                    # loss = criterion(output_map, label) + criterion(out_ll, ll_label) + 0.1 * Cw_SsimLoss_D(out_detail,detail_label) + criterion(out_detail, detail_label)
-            else:
-                with autocast(device_type="cuda", dtype=torch.float16):
-                    (output_map,enc1, enc2, enc3, enc4) = net(img)
-                    # (output_l,enc1_l, enc2_l, enc3_l, enc4_l) = net(label)
-                    loss = criterion(output_map, label)
-                    # loss = criterion(output_map, label) + criterion(enc1,enc1_l) + criterion(enc2,enc2_l) + criterion(enc3,enc3_l) + criterion(enc4,enc4_l)
+            coeffs = sfm(label)
+            ll_label = coeffs[:, [0, 4, 8]]
+            # ll_scale1_label, ll_scale2_label = net.ll_scale(label)
+            detail_label = coeffs[:, [1, 2, 3, 5, 6, 7, 9, 10, 11]]
+            # label = detail_label
+            with autocast(device_type="cuda", dtype=torch.float16):
+                (output_map, (out_ll, out_detail), dec2_out, dec3_out) = net(img)
+                # loss = criterion(output_map, label)
+                # (output_l,enc1_l, enc2_l, enc3_l, enc4_l) = net(label)
+                # loss = criterion(output_map, label)
+                # loss = 0.5 * criterion(out_ll,ll_label) + 0.5 * criterion(out_detail,detail_label) + 0.5 * criterion(out_ll_scale1,ll_scale1_label) + 0.5 * criterion(out_ll_scale2,ll_scale2_label) + criterion(output_map,label)
+                # loss1 = criterion1(output_map, label) +  0.5 * criterion1(out_ll, ll_label) +  0.5 * criterion1(out_detail, detail_label)
+                loss = criterion2(output_map, label) +  0.5 * criterion2(out_ll, ll_label) +  0.5 * criterion2(out_detail, detail_label)
+                # loss = loss1 + loss2
+                # loss = criterion(output_map, label) + criterion(out_ll, ll_label) + 0.1 * Cw_SsimLoss_D(out_detail,detail_label) + criterion(out_detail, detail_label)
             psnr = 10 * torch.log10(1 / F.mse_loss(output_map, label)).item()
             # ssmi = SsimLoss(output_map, label)
             step_loss.append(loss.item())
@@ -179,34 +201,26 @@ def main(args):
                 img_idx, label_idx = batch["source"], batch["target"]
                 img = img_idx.to(device)
                 label = label_idx.to(device)
-                if "wavelet" in model_name:
-                    coeffs = sfm(label)
-                    ll_label = coeffs[:, [0, 4, 8]]
-                    # ll_scale1_label, ll_scale2_label = net.ll_scale(label)
-                    detail_label = coeffs[:, [1, 2, 3, 5, 6, 7, 9, 10, 11]]
-                    # label = detail_label
-                    with autocast(device_type="cuda", dtype=torch.float16):
-                        (output_map, (out_ll, out_detail), dec2_out, dec3_out, enc4) = net(img)
-                        # loss = criterion(output_map, label)
-                        # (output_l,enc1_l, enc2_l, enc3_l, enc4_l) = net(label)
-                        # loss = criterion(output_map, label)
-                        # loss = 0.5 * criterion(out_ll,ll_label) + 0.5 * criterion(out_detail,detail_label) + 0.5 * criterion(out_ll_scale1,ll_scale1_label) + 0.5 * criterion(out_ll_scale2,ll_scale2_label) + criterion(output_map,label)
-                        loss = criterion(output_map, label) + 0.5 * criterion(out_ll, ll_label) + 0.5 * criterion(
-                            out_detail, detail_label)
-                        # loss = criterion(output_map, label) + criterion(out_ll, ll_label) + 0.1 * Cw_SsimLoss_D(
-                        #     out_detail, detail_label) + criterion(out_detail, detail_label)
-                        ssmi.append(SsimLoss(output_map, label).item())
-                        psnr.append(10 * torch.log10(1 / F.mse_loss(output_map, label)).item())
-                        loss_total.append(loss.item())
-                else:
-                    with autocast(device_type="cuda", dtype=torch.float16):
-                        (output_map, enc1, enc2, enc3, enc4) = net(img)
-                        # (output_l,enc1_l, enc2_l, enc3_l, enc4_l) = net(label)
-                        loss = criterion(output_map, label)
-                        # loss = criterion(output_map, label) + criterion(enc1,enc1_l) + criterion(enc2,enc2_l) + criterion(enc3,enc3_l) + criterion(enc4,enc4_l)
-                        ssmi.append(SsimLoss(output_map, label).item())
-                        psnr.append(10 * torch.log10(1 / F.mse_loss(output_map, label)).item())
-                        loss_total.append(loss.item())
+                coeffs = sfm(label)
+                ll_label = coeffs[:, [0, 4, 8]]
+                # ll_scale1_label, ll_scale2_label = net.ll_scale(label)
+                detail_label = coeffs[:, [1, 2, 3, 5, 6, 7, 9, 10, 11]]
+                # label = detail_label
+                with autocast(device_type="cuda", dtype=torch.float16):
+                    (output_map, (out_ll, out_detail), dec2_out, dec3_out) = net(img)
+                    # loss = criterion(output_map, label)
+                    # (output_l,enc1_l, enc2_l, enc3_l, enc4_l) = net(label)
+                    # loss = criterion(output_map, label)
+                    # loss = 0.5 * criterion(out_ll,ll_label) + 0.5 * criterion(out_detail,detail_label) + 0.5 * criterion(out_ll_scale1,ll_scale1_label) + 0.5 * criterion(out_ll_scale2,ll_scale2_label) + criterion(output_map,label)
+                    # loss1 = criterion1(output_map, label) +  0.5 * criterion1(out_ll, ll_label) +  0.5 * criterion1(out_detail, detail_label)
+                    loss = criterion2(output_map, label) + 0.5 * criterion2(out_ll, ll_label) + 0.5 * criterion2(
+                        out_detail, detail_label)
+                    # loss = loss1 + loss2
+                    # loss = criterion(output_map, label) + criterion(out_ll, ll_label) + 0.1 * Cw_SsimLoss_D(
+                    #     out_detail, detail_label) + criterion(out_detail, detail_label)
+                    ssmi.append(SsimLoss(output_map, label).item())
+                    psnr.append(10 * torch.log10(1 / F.mse_loss(output_map, label)).item())
+                    loss_total.append(loss.item())
 
 
                 # miou.append(MIOU(output_map, gt, smooth=1e-10, n_classes=2))
@@ -261,6 +275,9 @@ def opt_args():
     args = argparse.ArgumentParser()
     args.add_argument('--DATA_PATH', type=str, default="/mnt/d/Train Data/dz_data/RESIDE-6K",
                       help='Path to Dataset')
+    args.add_argument('--weight_path', type=str, help='Path to model weight')
+    args.add_argument('--DECAY', type=float, default=5e-5)
+    args.add_argument('--MOMENTUM', type=float, default=0.90)
     args.add_argument('--OUTPUT_PATH', type=str, default="./output",
                       help='Output Path')
     args.add_argument('--BATCH_SIZE', type=int, default=32,

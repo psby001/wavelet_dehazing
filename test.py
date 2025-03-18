@@ -46,7 +46,15 @@ def main(args):
         net = importlib.util.module_from_spec(spec)
         sys.modules["net"] = net
         spec.loader.exec_module(net)
-        model = net.UNet_wavelet(block=net.resmspblock)
+        model = net.UNet_wavelet()
+        # state_dict = torch.load(args.weight_path)["state_dict"]
+        # new_state_dict= {}
+        # for k, v in state_dict.items():
+        #     if "strip_att.fushion" in k:
+        #         continue
+        #     name = k
+        #     new_state_dict[name] = v  # 新字典的key值对应的value为一一对应的值。
+        # model.load_state_dict(new_state_dict)
         model.load_state_dict(torch.load(args.weight_path)["state_dict"])
     else:
         model = torch.load(args.weight_path)
@@ -166,25 +174,25 @@ def main(args):
             #     gz_image = np.asarray(gz_image)
             #     gz_image = Image.fromarray(gz_image)
             #     gz_image.save(os.path.join(ab_test_dir, "gz_" + name))
-            #     # ll_image = transform(lls)
-            #     # ll_image = np.asarray(ll_image)
-            #     # ll_image = Image.fromarray(ll_image)
-            #     # ll_image.save(os.path.join(ab_test_dir, "ll_"+name))
-            #     # lh = details[[0,3,6]]
-            #     # hl = details[[1, 4, 7]]
-            #     # hh = details[[2, 5, 8]]
-            #     # lh_image = transform(lh)
-            #     # lh_image = np.asarray(lh_image)
-            #     # lh_image = Image.fromarray(lh_image)
-            #     # lh_image.save(os.path.join(ab_test_dir, "lh_" + name))
-            #     # hl_image = transform(hl)
-            #     # hl_image = np.asarray(hl_image)
-            #     # hl_image = Image.fromarray(hl_image)
-            #     # hl_image.save(os.path.join(ab_test_dir, "hl_" + name))
-            #     # hh_image = transform(hh)
-            #     # hh_image = np.asarray(hh_image)
-            #     # hh_image = Image.fromarray(hh_image)
-            #     # hh_image.save(os.path.join(ab_test_dir, "hh_" + name))
+                # ll_image = transform(lls)
+                # ll_image = np.asarray(ll_image)
+                # ll_image = Image.fromarray(ll_image)
+                # ll_image.save(os.path.join(ab_test_dir, "ll_"+name))
+                # lh = details[[0,3,6]]
+                # hl = details[[1, 4, 7]]
+                # hh = details[[2, 5, 8]]
+                # lh_image = transform(lh)
+                # lh_image = np.asarray(lh_image)
+                # lh_image = Image.fromarray(lh_image)
+                # lh_image.save(os.path.join(ab_test_dir, "lh_" + name))
+                # hl_image = transform(hl)
+                # hl_image = np.asarray(hl_image)
+                # hl_image = Image.fromarray(hl_image)
+                # hl_image.save(os.path.join(ab_test_dir, "hl_" + name))
+                # hh_image = transform(hh)
+                # hh_image = np.asarray(hh_image)
+                # hh_image = Image.fromarray(hh_image)
+                # hh_image.save(os.path.join(ab_test_dir, "hh_" + name))
 
 
 
@@ -201,9 +209,10 @@ def opt_args():
     args = argparse.ArgumentParser()
     args.add_argument('--DATA_PATH', type=str, default="/mnt/d/Train Data/dz_data/RESIDE-6K",
                       help='Path to Dataset')
-    args.add_argument('--weight_path', type=str, default="output/RESIDE-6K_UNet_wavelet_14/model_best.pth",
+    args.add_argument('--weight_path', type=str, default="output/RESIDE-6K_UNet_wavelet_56/model_best.pth",
                       help='Path to model weight')
     args.add_argument('--OUTPUT_PATH', type=str, default="./result",
+
                       help='Output Path')
     args.add_argument('--TRANSFROM_SCALES', type=int, default=256,
                       help='train img size')
