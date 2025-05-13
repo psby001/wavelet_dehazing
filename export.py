@@ -40,10 +40,9 @@ def main(args):
             model.load_state_dict(new_state_dict)
             model.idwt = False
         else:
-            model.load_state_dict(torch.load(args.weight_path)["state_dict"])
-    else:
-        model = torch.load(args.weight_path)
-    model.to(device)
+            model.load_state_dict(torch.load(args.weight_path,map_location="cpu")["state_dict"])
+    pytorch_total_params = sum(p.numel() for p in model.parameters())
+    print(pytorch_total_params)
     if args.half:
         model = model.half()
     model.eval()
@@ -64,9 +63,9 @@ def main(args):
 
 def opt_args():
     args = argparse.ArgumentParser()
-    args.add_argument('--weight_path', type=str, default="output/RESIDE-6K_UNet_wavelet_57/model_best.pth",
+    args.add_argument('--weight_path', type=str, default="output_lite3/_UNet_wavelet_10/model_best.pth",
                       help='Path to model weight')
-    args.add_argument('--OUTPUT_ONNX', type=str, default="output_UNet_wavelet.onnx",
+    args.add_argument('--OUTPUT_ONNX', type=str, default="s3_si_litedec3_2.onnx",
                       help='Output onnx')
     args.add_argument('--TRANSFROM_SCALES', type=int, default=256,
                       help='train img size')

@@ -16,12 +16,12 @@ from wavelet import wt_m,iwt_m
 from IQA_pytorch import CW_SSIM
 import shutil
 import random
-def save_state_dict_with_model(state_dict,path,name):
-    torch.save(state_dict, os.path.join(path,name))
+def save_state_dict_with_model(state_dict,path,name,net = "net.py"):
+    # torch.save(state_dict, os.path.join(path,name))
     torch.save({'state_dict': state_dict}, os.path.join(path, name))
-    if not os.path.exists(os.path.join(path,'net.py')):
+    if not os.path.exists(os.path.join(path,net)):
         print('Saving in',path)
-        shutil.copy2('net.py', path)
+        shutil.copy2(net, os.path.join(path, "net.py"))
 
 
 def set_seed(seed=2552, loader=None):
@@ -46,17 +46,17 @@ def check_path(path,n=0):
         n+=1
         return check_path(path,n)
 
-def save_model(net,path,name):
+def save_model(model,path,name,net = "net.py"):
     if (not os.path.exists(path)):
         os.makedirs(path)
     # torch.save(net, os.path.join(path,save_state_dict_with_modelname))
-    save_state_dict_with_model(net.state_dict(),path,name)
+    save_state_dict_with_model(model.state_dict(),path,name,net = net)
 
 
 
 
-def main(args):
-    set_seed()
+def main(args,seed = 2552,n = ""):
+    set_seed(seed)
     from dz_datasets.loader import PairLoader
     train_data = PairLoader(args.DATA_PATH, 'train', 'train',
                                (args.TRANSFROM_SCALES,args.TRANSFROM_SCALES))
@@ -73,18 +73,26 @@ def main(args):
     # sfm = SWTForward()
     # net = UNet(block=resmspblock)
     if args.weight_path is not None:
-        print("Loading weights from {}".format(args.MODEL_PATH))
+        print("Loading weights from {}".format(args.weight_path))
         import importlib
         import sys
-        spec = importlib.util.spec_from_file_location("net", os.path.join(args.weight_path, "net.py"))
+        model_path = args.weight_path.rsplit("/", 1)[0]
+        spec = importlib.util.spec_from_file_location("net", os.path.join(model_path, "net.py"))
         model = importlib.util.module_from_spec(spec)
         sys.modules["net"] = model
         spec.loader.exec_module(model)
         net = model.UNet_wavelet()
-        net.load_state_dict(torch.load(args.weight_path)["state_dict"])
+        # net.load_state_dict(torch.load(args.weight_path)["state_dict"])
     else:
-        from net import UNet_wavelet
-        net = UNet_wavelet()
+        # import net
+        import importlib
+        import sys
+        model_path = "./"
+        spec = importlib.util.spec_from_file_location("net", os.path.join(model_path, "net"+n+".py"))
+        model = importlib.util.module_from_spec(spec)
+        sys.modules["net"] = model
+        spec.loader.exec_module(model)
+        net = model.UNet_wavelet()
     model_name = net.__class__.__name__
     print(model_name)
     dataset_name = args.DATA_PATH.split('/')[-1]
@@ -98,7 +106,7 @@ def main(args):
 
     criterion1 = torch.nn.L1Loss()
     criterion2 = nn.MSELoss()
-    Cw_SsimLoss_D = CW_SSIM(imgSize=(args.TRANSFROM_SCALES//2, args.TRANSFROM_SCALES//2), channels=9, level=4, ori=8).to(device)
+    # Cw_SsimLoss_D = CW_SSIM(imgSize=(args.TRANSFROM_SCALES//2, args.TRANSFROM_SCALES//2), channels=9, level=4, ori=8).to(device)
     SsimLoss = pytorch_ssim.SSIM().to(device)
 
     scaler = GradScaler()
@@ -139,6 +147,8 @@ def main(args):
         net.train()
         optimizer.zero_grad()
         pbar = tqdm.tqdm(enumerate(train_loader))
+        # if epoch != 0:
+        #     net.reset_arg()
         for batch_idx, batch in pbar:
             optimizer.zero_grad()
             step = epoch * len(train_loader) + batch_idx
@@ -151,14 +161,23 @@ def main(args):
             detail_label = coeffs[:, [1, 2, 3, 5, 6, 7, 9, 10, 11]]
             # label = detail_label
             with autocast(device_type="cuda", dtype=torch.float16):
-                (output_map, (out_ll, out_detail), dec2_out, dec3_out) = net(img)
+                out = net(img)
+                # out_label = net(label)
+                output_map = out[0]
+                out_ll,out_detail = out[1]
+                # out_dec2 = out[2]
+                # out_dec3 = out[3]
+                # label_out_dec2 = out_label[2]
+                # label_out_dec3 = out_label[3]
                 # loss = criterion(output_map, label)
                 # (output_l,enc1_l, enc2_l, enc3_l, enc4_l) = net(label)
                 # loss = criterion(output_map, label)
                 # loss = 0.5 * criterion(out_ll,ll_label) + 0.5 * criterion(out_detail,detail_label) + 0.5 * criterion(out_ll_scale1,ll_scale1_label) + 0.5 * criterion(out_ll_scale2,ll_scale2_label) + criterion(output_map,label)
-                # loss1 = criterion1(output_map, label) +  0.5 * criterion1(out_ll, ll_label) +  0.5 * criterion1(out_detail, detail_label)
-                loss = criterion2(output_map, label) +  0.5 * criterion2(out_ll, ll_label) +  0.5 * criterion2(out_detail, detail_label)
-                # loss = loss1 + loss2
+                loss1 = criterion1(output_map, label) +  0.5 * criterion1(out_ll, ll_label) +  0.5 * criterion1(out_detail, detail_label)
+                loss2 = criterion2(output_map, label) +  0.5 * criterion2(out_ll, ll_label) +  0.5 * criterion2(out_detail, detail_label)
+                # loss3 = 0.1 * Cw_SsimLoss_D(out_detail, detail_label)
+                # loss2 = 0.4 * criterion2(out_dec2,label_out_dec2) + 0.2  * criterion2(out_dec3,label_out_dec3)
+                loss = loss1 + loss2
                 # loss = criterion(output_map, label) + criterion(out_ll, ll_label) + 0.1 * Cw_SsimLoss_D(out_detail,detail_label) + criterion(out_detail, detail_label)
             psnr = 10 * torch.log10(1 / F.mse_loss(output_map, label)).item()
             # ssmi = SsimLoss(output_map, label)
@@ -177,10 +196,10 @@ def main(args):
             scaler.step(optimizer)
             scaler.update()
             optimizer.zero_grad()
-            if (batch_idx) % 100 == 0:
-                print(" Epoch [%d/%d] Loss: %.4f PSNR: %.4f lr: %f" % (epoch, batch_idx, np.mean(step_loss),np.mean(step_psnr),optimizer.param_groups[0]['lr']))
-                step_loss = []
-                step_psnr = []
+            # if (batch_idx) % 100 == 0:
+            #     print(" Epoch [%d/%d] Loss: %.4f PSNR: %.4f lr: %f" % (epoch, batch_idx, np.mean(step_loss),np.mean(step_psnr),optimizer.param_groups[0]['lr']))
+            #     step_loss = []
+            #     step_psnr = []
         scheduler.step()
         # if len(train_loader) % final_batch != 0:
         #     scaler.step(optimizer)
@@ -207,15 +226,17 @@ def main(args):
                 detail_label = coeffs[:, [1, 2, 3, 5, 6, 7, 9, 10, 11]]
                 # label = detail_label
                 with autocast(device_type="cuda", dtype=torch.float16):
-                    (output_map, (out_ll, out_detail), dec2_out, dec3_out) = net(img)
+                    out = net(img)
+                    output_map = out[0]
+                    out_ll, out_detail = out[1]
                     # loss = criterion(output_map, label)
                     # (output_l,enc1_l, enc2_l, enc3_l, enc4_l) = net(label)
                     # loss = criterion(output_map, label)
                     # loss = 0.5 * criterion(out_ll,ll_label) + 0.5 * criterion(out_detail,detail_label) + 0.5 * criterion(out_ll_scale1,ll_scale1_label) + 0.5 * criterion(out_ll_scale2,ll_scale2_label) + criterion(output_map,label)
-                    # loss1 = criterion1(output_map, label) +  0.5 * criterion1(out_ll, ll_label) +  0.5 * criterion1(out_detail, detail_label)
-                    loss = criterion2(output_map, label) + 0.5 * criterion2(out_ll, ll_label) + 0.5 * criterion2(
+                    loss1 = criterion1(output_map, label) +  0.5 * criterion1(out_ll, ll_label) +  0.5 * criterion1(out_detail, detail_label)
+                    loss2 = criterion2(output_map, label) + 0.5 * criterion2(out_ll, ll_label) + 0.5 * criterion2(
                         out_detail, detail_label)
-                    # loss = loss1 + loss2
+                    loss = loss1 + loss2
                     # loss = criterion(output_map, label) + criterion(out_ll, ll_label) + 0.1 * Cw_SsimLoss_D(
                     #     out_detail, detail_label) + criterion(out_detail, detail_label)
                     ssmi.append(SsimLoss(output_map, label).item())
@@ -239,11 +260,11 @@ def main(args):
             loss_pre = np.mean(loss_total)
             # torch.save({'state_dict': model_engine.state_dict()}, os.path.join(ab_test_dir, 'model_best.pth'))
             max_id = epoch
-            save_model(net, ab_test_dir, 'model_best.pth')
+            save_model(net, ab_test_dir, 'model_best.pth',net = "net"+n+".py")
 
         if epoch % 10 == 0:
             # torch.save({'state_dict': model_engine.state_dict()}, os.path.join(ab_test_dir, 'model' + str(epoch) + '.pth'))
-            save_model(net,ab_test_dir,'model' + str(epoch) + '.pth')
+            save_model(net,ab_test_dir,'model' + str(epoch) + '.pth',net = "net"+n+".py")
         if np.nanmean(psnr) > bestpsnr :
             bestpsnr = np.nanmean(psnr)
     fig = plt.figure(figsize=(30, 15))
@@ -292,4 +313,8 @@ def opt_args():
 
 if __name__ == '__main__':
     opt = opt_args()
+    # for n in ["9","10","11"]:
+    #     main(opt,n=n)
+    # for n in [2552,2553,2554]:
+    #     main(opt,seed=n)
     main(opt)
