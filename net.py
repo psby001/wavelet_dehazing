@@ -199,8 +199,8 @@ class decoder_lite1(nn.Module):
             nn.BatchNorm2d(inner_channels[2]),
             nn.ReLU()
         )
-        self.up_conv2 = Interpolate(scale_factor=2, mode='bilinear')
-        self.up_conv4 = Interpolate(scale_factor=4, mode='bilinear')
+        self.up_conv2 = Interpolate(scale_factor=2.0, mode='bilinear')
+        self.up_conv4 = Interpolate(scale_factor=4.0, mode='bilinear')
     def forward(self, enc1, enc2, enc3, enc4):
         dec4_up = self.up_conv2(enc4)
 
@@ -249,8 +249,8 @@ class decoder_lite1_1(nn.Module):
         self.fusion3_4 = block(in_channels[3]+in_channels[2], inner_channels[2])
 
 
-        self.up_conv2 = Interpolate(scale_factor=2, mode='bilinear')
-        self.up_conv4 = Interpolate(scale_factor=4, mode='bilinear')
+        self.up_conv2 = Interpolate(scale_factor=2.0, mode='bilinear')
+        self.up_conv4 = Interpolate(scale_factor=4.0, mode='bilinear')
     def forward(self, enc1, enc2, enc3, enc4):
         dec4_up = self.up_conv2(enc4)
 
@@ -298,8 +298,8 @@ class decoder_lite1_2(nn.Module):
         )
 
         self.fusion_all = block(inner_channels[0] + inner_channels[2], (inner_channels[0] + inner_channels[2]) // 2)
-        self.up_conv2 = Interpolate(scale_factor=2, mode='bilinear')
-        self.up_conv4 = Interpolate(scale_factor=4, mode='bilinear')
+        self.up_conv2 = Interpolate(scale_factor=2., mode='bilinear')
+        self.up_conv4 = Interpolate(scale_factor=4., mode='bilinear')
     def forward(self, enc1, enc2, enc3, enc4):
         dec4_up = self.up_conv2(enc4)
 
@@ -351,8 +351,8 @@ class decoder_lite2(nn.Module):
             nn.BatchNorm2d(inner_channels[1]),
             nn.ReLU()
         )
-        self.up_conv2 = Interpolate(scale_factor=2, mode='bilinear')
-        self.up_conv8 = Interpolate(scale_factor=8, mode='bilinear')
+        self.up_conv2 = Interpolate(scale_factor=2., mode='bilinear')
+        self.up_conv8 = Interpolate(scale_factor=8., mode='bilinear')
     def forward(self, enc1, enc2, enc3, enc4):
         dec4_up = self.up_conv8(enc4)
 
@@ -397,8 +397,8 @@ class decoder_lite2_1(nn.Module):
 
         self.fusion3_2 = block(in_channels[2]+in_channels[1], inner_channels[1])
 
-        self.up_conv2 = Interpolate(scale_factor=2, mode='bilinear')
-        self.up_conv8 = Interpolate(scale_factor=8, mode='bilinear')
+        self.up_conv2 = Interpolate(scale_factor=2., mode='bilinear')
+        self.up_conv8 = Interpolate(scale_factor=8., mode='bilinear')
     def forward(self, enc1, enc2, enc3, enc4):
         dec4_up = self.up_conv8(enc4)
 
@@ -452,8 +452,8 @@ class decoder_lite2_2(nn.Module):
         )
 
         self.fusion_all = block(inner_channels[0] + inner_channels[1], (inner_channels[0] + inner_channels[1])//2)
-        self.up_conv2 = Interpolate(scale_factor=2, mode='bilinear')
-        self.up_conv8 = Interpolate(scale_factor=8, mode='bilinear')
+        self.up_conv2 = Interpolate(scale_factor=2., mode='bilinear')
+        self.up_conv8 = Interpolate(scale_factor=8., mode='bilinear')
     def forward(self, enc1, enc2, enc3, enc4):
         dec4_up = self.up_conv8(enc4)
 
@@ -505,8 +505,8 @@ class decoder_lite3(nn.Module):
             nn.BatchNorm2d(inner_channels[1]),
             nn.ReLU()
         )
-        self.up_conv2 = Interpolate(scale_factor=2, mode='bilinear')
-        self.up_conv4 = Interpolate(scale_factor=4, mode='bilinear')
+        self.up_conv2 = Interpolate(scale_factor=2., mode='bilinear')
+        self.up_conv4 = Interpolate(scale_factor=4., mode='bilinear')
     def forward(self, enc1, enc2, enc3, enc4):
         dec3_up = self.up_conv4(enc3)
 
@@ -550,8 +550,8 @@ class decoder_lite3_1(nn.Module):
         self.fusion3_1 = block(in_channels[2] + in_channels[0], inner_channels[0])
 
         self.fusion4_2 = block(in_channels[3]+in_channels[1], inner_channels[1])
-        self.up_conv2 = Interpolate(scale_factor=2, mode='bilinear')
-        self.up_conv4 = Interpolate(scale_factor=4, mode='bilinear')
+        self.up_conv2 = Interpolate(scale_factor=2., mode='bilinear')
+        self.up_conv4 = Interpolate(scale_factor=4., mode='bilinear')
     def forward(self, enc1, enc2, enc3, enc4):
         dec3_up = self.up_conv4(enc3)
 
@@ -605,8 +605,8 @@ class decoder_lite3_2(nn.Module):
         )
 
         self.fusion_all = block(inner_channels[0] + inner_channels[1], (inner_channels[0] + inner_channels[1])//2)
-        self.up_conv2 = Interpolate(scale_factor=2, mode='bilinear')
-        self.up_conv4 = Interpolate(scale_factor=4, mode='bilinear')
+        self.up_conv2 = Interpolate(scale_factor=2., mode='bilinear')
+        self.up_conv4 = Interpolate(scale_factor=4., mode='bilinear')
     def forward(self, enc1, enc2, enc3, enc4):
         dec3_up = self.up_conv4(enc3)
 
@@ -656,8 +656,8 @@ class decoder_lite4(nn.Module):
         self.fusion2_3 = block(in_channels[1]+in_channels[2], inner_channels[1])
 
 
-        self.up_conv2 = Interpolate(scale_factor=2, mode='bilinear')
-        self.up_conv8 = Interpolate(scale_factor=8, mode='bilinear')
+        self.up_conv2 = Interpolate(scale_factor=2., mode='bilinear')
+        self.up_conv8 = Interpolate(scale_factor=8., mode='bilinear')
     def forward(self, enc1, enc2, enc3, enc4):
         dec3_up = self.up_conv2(enc3)
 
@@ -700,8 +700,8 @@ class decoder_lite5(nn.Module):
         self.fusion2_3 = block(in_channels[1]+in_channels[2], inner_channels[1])
 
 
-        self.up_conv2 = Interpolate(scale_factor=2, mode='bilinear')
-        self.up_conv8 = Interpolate(scale_factor=8, mode='bilinear')
+        self.up_conv2 = Interpolate(scale_factor=2., mode='bilinear')
+        self.up_conv8 = Interpolate(scale_factor=8., mode='bilinear')
     def forward(self, enc1, enc2, enc3, enc4):
         dec3_up = self.up_conv2(enc3)
 
@@ -1020,7 +1020,7 @@ class shuffer_v2(nn.Module):
             for j in range(self.level):
                 # l = torch.cat([levels[i][n, sort_ags[i][[n], channels * j:channels * (j + 1)]] for n in range(levels[i].shape[0])], dim=0)
                 l = torch.cat([levels[i][n, sort_ags[i][[n], channels * self.ags[i][j]:channels * (self.ags[i][j] + 1)]] for n in range(levels[i].shape[0])], dim=0)
-                out_level.append(F.interpolate(l, scale_factor=1/(2**(j-i)), mode=mode))
+                out_level.append(F.interpolate(l, scale_factor=float(1/(2**(j-i))), mode=mode))
             out_levels.append(out_level)
         output = []
         for i in range(self.level):
@@ -1170,8 +1170,8 @@ class resmspblock_sp(nn.Module):
         # self.sort_tensor2 = torch.zeros((self.channel1))
 
         self.block1 = nn.Sequential(
-            # nn.Conv2d(self.channel1, self.channel1, 3, padding=1,groups=self.channel1),
-            nn.Conv2d(self.channel1, self.channel1, 3, padding=1),
+            nn.Conv2d(self.channel1, self.channel1, 3, padding=1,groups=self.channel1),
+            # nn.Conv2d(self.channel1, self.channel1, 3, padding=1),
             nn.BatchNorm2d(self.channel1),
             nn.ReLU()
         )
@@ -1237,6 +1237,377 @@ class resmspblock_sp(nn.Module):
         #
         # return out4 + out3
         return out4
+        # return out3
+
+    # def reset_arg(self):
+    #     self.sort_arg = nn.Parameter(torch.argsort(self.sort_tensor),requires_grad=False)
+    #     self.sort_arg2 = nn.Parameter(torch.argsort(self.sort_tensor2),requires_grad=False)
+    #     self.sort_tensor = self.sort_tensor * 0
+    #     self.sort_tensor2 = self.sort_tensor2 * 0
+
+class resmspblock_sp_v1(nn.Module):
+    def __init__(self, in_channels, out_channels,a=sp_rate):
+        super().__init__()
+        self.resconv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1) if in_channels != out_channels else nn.Identity()
+        self.channel1 = round(out_channels*a)
+        self.channel2 = round(out_channels*(a**2))
+        self.channel3 = round(out_channels * (a ** 3))
+        # self.sort_arg = nn.Parameter(torch.tensor(range(out_channels)),requires_grad=False)
+        # self.sort_arg2 = nn.Parameter(torch.tensor(range(self.channel1)),requires_grad=False)
+        # self.gap = nn.AdaptiveAvgPool2d(1)
+        # self.sort_tensor = torch.zeros((out_channels))
+        # self.sort_tensor2 = torch.zeros((self.channel1))
+
+        self.block1 = nn.Sequential(
+            nn.Conv2d(self.channel1, self.channel1, 3, padding=1,groups=self.channel1),
+            # nn.Conv2d(self.channel1, self.channel1, 3, padding=1),
+            nn.BatchNorm2d(self.channel1),
+            nn.ReLU()
+        )
+
+        self.block2 = nn.Sequential(
+            nn.Conv2d(self.channel2, self.channel2, 3, padding=1),
+            # nn.Conv2d(self.channel2, self.channel2, 3, padding=1),
+            nn.BatchNorm2d(self.channel2),
+            nn.ReLU()
+        )
+        self.block3_1 = nn.Sequential(
+            nn.Conv2d(self.channel3, self.channel3, 3, padding=1),
+            # nn.Conv2d(self.channel2, self.channel2, 3, padding=1),
+            nn.BatchNorm2d(self.channel3),
+            nn.ReLU()
+        )
+
+        self.block3_2 = nn.Sequential(
+            nn.Conv2d(self.channel3, self.channel3, 3, padding=1),
+            # nn.Conv2d(self.channel2, self.channel2, 3, padding=1),
+            nn.BatchNorm2d(self.channel3),
+            nn.ReLU()
+        )
+
+        # self.block2_fu = nn.Sequential(
+        #     nn.Conv2d(self.channel1, self.channel1, 1),
+        #     nn.BatchNorm2d(self.channel1),
+        #     nn.ReLU()
+        # )
+
+        self.block4 = nn.Sequential(
+            nn.Conv2d(out_channels, out_channels, 1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU()
+        )
+
+        # self.block4 = nn.Sequential(
+        #     nn.Conv2d(out_channels, out_channels, 3, padding=1),
+        #     nn.BatchNorm2d(out_channels),
+        #     nn.ReLU()
+        # )
+        # self.strip_att = cubic_attention(out_channels, group=1, dilation=1, kernel=3)
+        self.strip_att = cubic_attention_2(self.channel1, kernel=3)
+
+        self.fushion = nn.Sequential(
+            nn.Conv2d((out_channels - self.channel1) + self.channel1*2, out_channels, 1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU()
+        )
+
+    def forward(self, x):
+        res = self.resconv(x)
+        B,C,H,W = res.shape
+        # device = res.device
+        # self.sort_tensor = self.sort_tensor.to(device)
+        # self.sort_tensor = self.sort_tensor + torch.mean(self.gap(res).reshape((B, C)),dim=0)
+        # res = res[:,self.sort_arg]
+        part1,part2 = res[:,:self.channel1],res[:,self.channel1:]
+        out1 = self.block1(part1)
+        # self.sort_tensor2 = self.sort_tensor2.to(device)
+        # self.sort_tensor2 = self.sort_tensor2 + torch.mean(self.gap(out1).reshape(out1.shape[:2]), dim=0)
+        # out1 = out1[:, self.sort_arg2]
+        out1_1,out1_2 = out1[:,:self.channel2],out1[:,self.channel2:]
+
+        out1_1 = self.block2(out1_1)
+        # out2 = self.block2_fu(torch.concat((out1_1,out1_2),dim=1))
+        out1_1_1,out1_1_2 = out1_1[:,:self.channel3],out1_1[:,self.channel3:]
+        out1_1_1 = self.block3_1(out1_1_1)
+        out1_1_2 = self.block3_2(out1_1_2)
+        out2 = torch.concat((out1_1_1,out1_1_2,out1_2),dim=1)
+
+
+        out2_res = torch.concat([out2,part2],dim=1)
+        out3 = self.block4(out2_res)
+
+        out3_part1,out3_part2 = out3[:,:self.channel1],out3[:,self.channel1:]
+        out4 = self.fushion(torch.cat((self.strip_att(out3_part1),out3_part2),dim=1))
+        # out4 = self.fushion(torch.cat((self.strip_att(out3_part1),self.block4(out3_part2)),dim=1))
+
+        #
+        # return out4 + out3
+        return out4
+        # return out3
+
+    # def reset_arg(self):
+    #     self.sort_arg = nn.Parameter(torch.argsort(self.sort_tensor),requires_grad=False)
+    #     self.sort_arg2 = nn.Parameter(torch.argsort(self.sort_tensor2),requires_grad=False)
+    #     self.sort_tensor = self.sort_tensor * 0
+    #     self.sort_tensor2 = self.sort_tensor2 * 0
+
+class resmspblock_sp_v2(nn.Module):
+    def __init__(self, in_channels, out_channels,a=sp_rate):
+        super().__init__()
+        self.resconv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1) if in_channels != out_channels else nn.Identity()
+        self.channel1 = round(out_channels*a)
+        self.channel2 = round(out_channels*(a**2))
+        self.channel3 = round(out_channels * (a ** 3))
+        self.channel4 = round(out_channels * (a ** 4))
+        # self.sort_arg = nn.Parameter(torch.tensor(range(out_channels)),requires_grad=False)
+        # self.sort_arg2 = nn.Parameter(torch.tensor(range(self.channel1)),requires_grad=False)
+        # self.gap = nn.AdaptiveAvgPool2d(1)
+        # self.sort_tensor = torch.zeros((out_channels))
+        # self.sort_tensor2 = torch.zeros((self.channel1))
+
+        self.block1 = nn.Sequential(
+            nn.Conv2d(self.channel1, self.channel1, 3, padding=1,groups=self.channel1),
+            # nn.Conv2d(self.channel1, self.channel1, 3, padding=1),
+            nn.BatchNorm2d(self.channel1),
+            nn.ReLU()
+        )
+
+        self.block2 = nn.Sequential(
+            nn.Conv2d(self.channel2, self.channel2, 3, padding=1),
+            # nn.Conv2d(self.channel2, self.channel2, 3, padding=1),
+            nn.BatchNorm2d(self.channel2),
+            nn.ReLU()
+        )
+        self.block3 = nn.Sequential(
+            nn.Conv2d(self.channel3, self.channel3, 3, padding=1),
+            # nn.Conv2d(self.channel2, self.channel2, 3, padding=1),
+            nn.BatchNorm2d(self.channel3),
+            nn.ReLU()
+        )
+
+        self.block4 = nn.Sequential(
+            nn.Conv2d(self.channel4, self.channel4, 3, padding=1),
+            # nn.Conv2d(self.channel2, self.channel2, 3, padding=1),
+            nn.BatchNorm2d(self.channel4),
+            nn.ReLU()
+        )
+
+        # self.block2_fu = nn.Sequential(
+        #     nn.Conv2d(self.channel1, self.channel1, 1),
+        #     nn.BatchNorm2d(self.channel1),
+        #     nn.ReLU()
+        # )
+
+        self.block5 = nn.Sequential(
+            nn.Conv2d(out_channels, out_channels, 1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU()
+        )
+
+        # self.block4 = nn.Sequential(
+        #     nn.Conv2d(out_channels, out_channels, 3, padding=1),
+        #     nn.BatchNorm2d(out_channels),
+        #     nn.ReLU()
+        # )
+        # self.strip_att = cubic_attention(out_channels, group=1, dilation=1, kernel=3)
+        self.strip_att = cubic_attention_2(self.channel1, kernel=3)
+
+        self.fushion = nn.Sequential(
+            nn.Conv2d((out_channels - self.channel1) + self.channel1*2, out_channels, 1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU()
+        )
+
+    def forward(self, x):
+        res = self.resconv(x)
+        B,C,H,W = res.shape
+        # device = res.device
+        # self.sort_tensor = self.sort_tensor.to(device)
+        # self.sort_tensor = self.sort_tensor + torch.mean(self.gap(res).reshape((B, C)),dim=0)
+        # res = res[:,self.sort_arg]
+        part1,part2 = res[:,:self.channel1],res[:,self.channel1:]
+        out1 = self.block1(part1)
+        # self.sort_tensor2 = self.sort_tensor2.to(device)
+        # self.sort_tensor2 = self.sort_tensor2 + torch.mean(self.gap(out1).reshape(out1.shape[:2]), dim=0)
+        # out1 = out1[:, self.sort_arg2]
+        out1_1,out1_2 = out1[:,:self.channel2],out1[:,self.channel2:]
+
+        out2 = self.block2(out1_1)
+        # out2 = self.block2_fu(torch.concat((out1_1,out1_2),dim=1))
+        out2_1,out2_2 = out2[:,:self.channel3],out2[:,self.channel3:]
+        out3 = self.block3(out2_1)
+        out3_1,out3_2 = out3[:,:self.channel4],out3[:,self.channel4:]
+        out3_1 = self.block4(out3_1)
+        part1 = torch.concat((out3_1,out3_2,out2_2,out1_2),dim=1)
+
+
+        out2_res = torch.concat([part1,part2],dim=1)
+        out3 = self.block5(out2_res)
+
+        out3_part1,out3_part2 = out3[:,:self.channel1],out3[:,self.channel1:]
+        out4 = self.fushion(torch.cat((self.strip_att(out3_part1),out3_part2),dim=1))
+        # out4 = self.fushion(torch.cat((self.strip_att(out3_part1),self.block4(out3_part2)),dim=1))
+
+        #
+        # return out4 + out3
+        return out4
+        # return out3
+
+    # def reset_arg(self):
+    #     self.sort_arg = nn.Parameter(torch.argsort(self.sort_tensor),requires_grad=False)
+    #     self.sort_arg2 = nn.Parameter(torch.argsort(self.sort_tensor2),requires_grad=False)
+    #     self.sort_tensor = self.sort_tensor * 0
+    #     self.sort_tensor2 = self.sort_tensor2 * 0
+
+class resmspblock_sp_v3(nn.Module):
+    def __init__(self, in_channels, out_channels,a=sp_rate):
+        super().__init__()
+        self.resconv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1) if in_channels != out_channels else nn.Identity()
+        self.channel1 = round((out_channels-out_channels%16)*a)
+        self.channel2 = round((out_channels-out_channels%16)*(a**2))
+        # self.sort_arg = nn.Parameter(torch.tensor(range(out_channels)),requires_grad=False)
+        # self.sort_arg2 = nn.Parameter(torch.tensor(range(self.channel1)),requires_grad=False)
+        # self.gap = nn.AdaptiveAvgPool2d(1)
+        # self.sort_tensor = torch.zeros((out_channels))
+        # self.sort_tensor2 = torch.zeros((self.channel1))
+
+        self.block1 = nn.Sequential(
+            nn.Conv2d(self.channel1, self.channel1, 3, padding=1,groups=self.channel1),
+            # nn.Conv2d(self.channel1, self.channel1, 3, padding=1),
+            nn.BatchNorm2d(self.channel1),
+            nn.ReLU()
+        )
+        self.block2 = nn.Sequential(
+            nn.Conv2d(self.channel2, self.channel2, 3, padding=1,groups=4),
+            # nn.Conv2d(self.channel2, self.channel2, 3, padding=1),
+            nn.BatchNorm2d(self.channel2),
+            nn.ReLU()
+        )
+
+        # self.block2_fu = nn.Sequential(
+        #     nn.Conv2d(self.channel1, self.channel1, 1),
+        #     nn.BatchNorm2d(self.channel1),
+        #     nn.ReLU()
+        # )
+
+        self.block3 = nn.Sequential(
+            nn.Conv2d(out_channels, out_channels, 1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU()
+        )
+
+        # self.block4 = nn.Sequential(
+        #     nn.Conv2d(out_channels, out_channels, 3, padding=1),
+        #     nn.BatchNorm2d(out_channels),
+        #     nn.ReLU()
+        # )
+        # self.strip_att = cubic_attention(out_channels, group=1, dilation=1, kernel=3)
+        self.strip_att = cubic_attention_2(self.channel1, kernel=3)
+
+        self.fushion = nn.Sequential(
+            nn.Conv2d((out_channels - self.channel1) + self.channel1*2, out_channels, 1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU()
+        )
+
+    def forward(self, x):
+        res = self.resconv(x)
+        B,C,H,W = res.shape
+        # device = res.device
+        # self.sort_tensor = self.sort_tensor.to(device)
+        # self.sort_tensor = self.sort_tensor + torch.mean(self.gap(res).reshape((B, C)),dim=0)
+        # res = res[:,self.sort_arg]
+        part1,part2 = res[:,:self.channel1],res[:,self.channel1:]
+        out1 = self.block1(part1)
+        # self.sort_tensor2 = self.sort_tensor2.to(device)
+        # self.sort_tensor2 = self.sort_tensor2 + torch.mean(self.gap(out1).reshape(out1.shape[:2]), dim=0)
+        # out1 = out1[:, self.sort_arg2]
+        out1_1,out1_2 = out1[:,:self.channel2],out1[:,self.channel2:]
+
+        out1_1 = self.block2(out1_1)
+        # out2 = self.block2_fu(torch.concat((out1_1,out1_2),dim=1))
+        out2 = torch.concat((out1_1,out1_2),dim=1)
+
+        out2_res = torch.concat([part2,out2],dim=1)
+        out3 = self.block3(out2_res)
+
+        out3_part1,out3_part2 = out3[:,:self.channel1],out3[:,self.channel1:]
+        out4 = self.fushion(torch.cat((self.strip_att(out3_part1),out3_part2),dim=1))
+        # out4 = self.fushion(torch.cat((self.strip_att(out3_part1),self.block4(out3_part2)),dim=1))
+
+        #
+        # return out4 + out3
+        return out4
+        # return out3
+
+    # def reset_arg(self):
+    #     self.sort_arg = nn.Parameter(torch.argsort(self.sort_tensor),requires_grad=False)
+    #     self.sort_arg2 = nn.Parameter(torch.argsort(self.sort_tensor2),requires_grad=False)
+    #     self.sort_tensor = self.sort_tensor * 0
+    #     self.sort_tensor2 = self.sort_tensor2 * 0
+class gNet_block(nn.Module):
+    def __init__(self, in_channels, out_channels,a=sp_rate):
+        super().__init__()
+        self.resconv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1) if in_channels != out_channels else nn.Identity()
+        self.channel1 = round(out_channels*a)
+        self.channel2 = round(out_channels*(a**2))
+        self.channel3 = round(out_channels * (a ** 3))
+        # self.sort_arg = nn.Parameter(torch.tensor(range(out_channels)),requires_grad=False)
+        # self.sort_arg2 = nn.Parameter(torch.tensor(range(self.channel1)),requires_grad=False)
+        # self.gap = nn.AdaptiveAvgPool2d(1)
+        # self.sort_tensor = torch.zeros((out_channels))
+        # self.sort_tensor2 = torch.zeros((self.channel1))
+
+        self.block1_1 = nn.Sequential(
+            nn.Conv2d(self.channel1, self.channel1, 1),
+            # nn.Conv2d(self.channel1, self.channel1, 3, padding=1),
+            nn.BatchNorm2d(self.channel1),
+            # nn.ReLU()
+        )
+
+        self.block1_2 = nn.Sequential(
+            nn.Conv2d(self.channel1, self.channel1, 3, padding=1,groups=self.channel1),
+            # nn.Conv2d(self.channel2, self.channel2, 3, padding=1),
+            nn.BatchNorm2d(self.channel1),
+            nn.Sigmoid()
+        )
+        self.block2 = nn.Sequential(
+            nn.Conv2d(self.channel1, self.channel1, 1),
+            # nn.Conv2d(self.channel2, self.channel2, 3, padding=1),
+            nn.BatchNorm2d(self.channel1),
+            nn.ReLU()
+        )
+
+
+        self.fushion = nn.Sequential(
+            nn.Conv2d(out_channels, out_channels, 1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU()
+        )
+
+    def forward(self, x):
+        res = self.resconv(x)
+        B,C,H,W = res.shape
+        # device = res.device
+        # self.sort_tensor = self.sort_tensor.to(device)
+        # self.sort_tensor = self.sort_tensor + torch.mean(self.gap(res).reshape((B, C)),dim=0)
+        # res = res[:,self.sort_arg]
+        part1,part2 = res[:,:self.channel1],res[:,self.channel1:]
+        out1_1 = self.block1_1(part1)
+        out1_2 = self.block1_2(part1)
+        # self.sort_tensor2 = self.sort_tensor2.to(device)
+        # self.sort_tensor2 = self.sort_tensor2 + torch.mean(self.gap(out1).reshape(out1.shape[:2]), dim=0)
+        # out1 = out1[:, self.sort_arg2]
+        out1 = torch.mul(out1_1, out1_2)
+        out1 = self.block2(out1)
+
+
+        out = self.fushion(torch.concat((out1,part2),dim=1))
+        # out4 = self.fushion(torch.cat((self.strip_att(out3_part1),self.block4(out3_part2)),dim=1))
+
+        #
+        # return out4 + out3
+        return out
         # return out3
 
     # def reset_arg(self):
@@ -1423,7 +1794,7 @@ class Interpolate(nn.Module):
     def __init__(self, scale_factor = 0.5, mode = "bilinear"):
         super(Interpolate, self).__init__()
         self.interp = F.interpolate
-        self.scale_factor = scale_factor
+        self.scale_factor = float(scale_factor)
         self.mode = mode
 
     def forward(self, x):
@@ -1493,7 +1864,7 @@ class FSnet(nn.Module):
             out_level = []
             for j in range(level_num):
                 l = levels[i][:, channels * j:channels * (j + 1), :, :]
-                out_level.append(F.interpolate(l, scale_factor=1/(2**(j-i)), mode=mode))
+                out_level.append(F.interpolate(l, scale_factor=float(1/(2**(j-i))), mode=mode))
             out_levels.append(out_level)
         output = []
         for i in range(level_num):
@@ -1662,7 +2033,7 @@ class FSnet_s4(nn.Module):
             out_level = []
             for j in range(level_num):
                 l = levels[i][:, channels * j:channels * (j + 1), :, :]
-                out_level.append(F.interpolate(l, scale_factor=1 / (2 ** (j - i)), mode=mode))
+                out_level.append(F.interpolate(l, scale_factor=float(1 / (2 ** (j - i))), mode=mode))
             out_levels.append(out_level)
         output = []
         for i in range(level_num):
@@ -1773,7 +2144,7 @@ class FSnet_s22(nn.Module):
             out_level = []
             for j in range(level_num):
                 l = levels[i][:, channels * j:channels * (j + 1), :, :]
-                out_level.append(F.interpolate(l, scale_factor=1 / (2 ** (j - i)), mode=mode))
+                out_level.append(F.interpolate(l, scale_factor=float(1 / (2 ** (j - i))), mode=mode))
             out_levels.append(out_level)
         output = []
         for i in range(level_num):
@@ -1888,7 +2259,7 @@ class FSnet_s3(nn.Module):
             out_level = []
             for j in range(level_num):
                 l = levels[i][:, channels * j:channels * (j + 1), :, :]
-                out_level.append(F.interpolate(l, scale_factor=1 / (2 ** (j - i)), mode=mode))
+                out_level.append(F.interpolate(l, scale_factor=float(1 / (2 ** (j - i))), mode=mode))
             out_levels.append(out_level)
         output = []
         for i in range(level_num):
@@ -1955,7 +2326,7 @@ class FSnet_P_scale(nn.Module):
             out_level = []
             for j in range(level_num):
                 l = levels[i][:, channels * j:channels * (j + 1), :, :]
-                out_level.append(F.interpolate(l, scale_factor=1/(2**(j-i)), mode=mode))
+                out_level.append(F.interpolate(l, scale_factor=float(1/(2**(j-i))), mode=mode))
             out_levels.append(out_level)
         output = []
         for i in range(level_num):
@@ -2017,7 +2388,7 @@ class FSnet_P_scale_S3(nn.Module):
             out_level = []
             for j in range(level_num):
                 l = levels[i][:, channels * j:channels * (j + 1), :, :]
-                out_level.append(F.interpolate(l, scale_factor=1/(2**(j-i)), mode=mode))
+                out_level.append(F.interpolate(l, scale_factor=float(1/(2**(j-i))), mode=mode))
             out_levels.append(out_level)
         output = []
         for i in range(level_num):
@@ -2081,7 +2452,7 @@ class FSnet_P_scale_S4(nn.Module):
             out_level = []
             for j in range(level_num):
                 l = levels[i][:, channels * j:channels * (j + 1), :, :]
-                out_level.append(F.interpolate(l, scale_factor=1/(2**(j-i)), mode=mode))
+                out_level.append(F.interpolate(l, scale_factor=float(1/(2**(j-i))), mode=mode))
             out_levels.append(out_level)
         output = []
         for i in range(level_num):
@@ -2143,7 +2514,7 @@ class FSnet_P_scale_S22(nn.Module):
             out_level = []
             for j in range(level_num):
                 l = levels[i][:, channels * j:channels * (j + 1), :, :]
-                out_level.append(F.interpolate(l, scale_factor=1/(2**(j-i)), mode=mode))
+                out_level.append(F.interpolate(l, scale_factor=float(1/(2**(j-i))), mode=mode))
             out_levels.append(out_level)
         output = []
         for i in range(level_num):
@@ -2242,7 +2613,7 @@ class FSnet_s3_v2(nn.Module):
             out_level = []
             for j in range(level_num):
                 l = levels[i][:, channels * j:channels * (j + 1), :, :]
-                out_level.append(F.interpolate(l, scale_factor=1 / (2 ** (j - i)), mode=mode))
+                out_level.append(F.interpolate(l, scale_factor=float(1 / (2 ** (j - i))), mode=mode))
             out_levels.append(out_level)
         output = []
         for i in range(level_num):
@@ -2353,7 +2724,7 @@ class FSnet_s4_v2(nn.Module):
             out_level = []
             for j in range(level_num):
                 l = levels[i][:, channels * j:channels * (j + 1), :, :]
-                out_level.append(F.interpolate(l, scale_factor=1 / (2 ** (j - i)), mode=mode))
+                out_level.append(F.interpolate(l, scale_factor=float(1 / (2 ** (j - i))), mode=mode))
             out_levels.append(out_level)
         output = []
         for i in range(level_num):
@@ -2465,7 +2836,7 @@ class FSnet_s22_v2(nn.Module):
             out_level = []
             for j in range(level_num):
                 l = levels[i][:, channels * j:channels * (j + 1), :, :]
-                out_level.append(F.interpolate(l, scale_factor=1 / (2 ** (j - i)), mode=mode))
+                out_level.append(F.interpolate(l, scale_factor=float(1 / (2 ** (j - i))), mode=mode))
             out_levels.append(out_level)
         output = []
         for i in range(level_num):
@@ -2535,7 +2906,7 @@ class FSnet_P_scale_S3_V2(nn.Module):
             out_level = []
             for j in range(level_num):
                 l = levels[i][:, channels * j:channels * (j + 1), :, :]
-                out_level.append(F.interpolate(l, scale_factor=1/(2**(j-i)), mode=mode))
+                out_level.append(F.interpolate(l, scale_factor=float(1/(2**(j-i))), mode=mode))
             out_levels.append(out_level)
         output = []
         for i in range(level_num):
@@ -2600,7 +2971,7 @@ class FSnet_P_scale_S4_V2(nn.Module):
             out_level = []
             for j in range(level_num):
                 l = levels[i][:, channels * j:channels * (j + 1), :, :]
-                out_level.append(F.interpolate(l, scale_factor=1/(2**(j-i)), mode=mode))
+                out_level.append(F.interpolate(l, scale_factor=float(1/(2**(j-i))), mode=mode))
             out_levels.append(out_level)
         output = []
         for i in range(level_num):
@@ -2662,7 +3033,7 @@ class FSnet_P_scale_S22_V2(nn.Module):
             out_level = []
             for j in range(level_num):
                 l = levels[i][:, channels * j:channels * (j + 1), :, :]
-                out_level.append(F.interpolate(l, scale_factor=1/(2**(j-i)), mode=mode))
+                out_level.append(F.interpolate(l, scale_factor=float(1/(2**(j-i))), mode=mode))
             out_levels.append(out_level)
         output = []
         for i in range(level_num):
@@ -2699,10 +3070,10 @@ class UNet_wavelet(nn.Module):
             # 下採樣層
             # self.encoder = FSnet(in_channels,block = block,down_sample=0)
             # self.encoder = FSnet_s22(in_channels,down_sample=0,block = block)
-            self.encoder = FSnet_s4(in_channels,block =block,down_sample=0)
+            # self.encoder = FSnet_s4(in_channels,block =block,down_sample=0)
             # self.encoder = FSnet_P_scale(in_channels,block = block,xmf=self.xfm)
             # self.encoder = FSnet_P_scale_S3(in_channels,block = block,xmf=self.xfm)
-            # self.encoder = FSnet_P_scale_S3_V2(in_channels,xmf=self.xfm)
+            self.encoder = FSnet_P_scale_S3_V2(in_channels,xmf=self.xfm)
             # self.encoder = FSnet_s3_v2(in_channels, down_sample=0)
 
             # self.encoder = FSnet_Sc(in_channels,wl=True)
@@ -2711,13 +3082,16 @@ class UNet_wavelet(nn.Module):
             self.ifm = iwt_m(requires_grad=False)
             # self.ifm = SWTInverse(requires_grad=False)
             self.idwt = True
+            self.out_ = False
 
-            self.ll_decoder = decoder(out_channels=3, in_channels=self.encoder.out_channel,block=block)
+            # self.ll_decoder = decoder(out_channels=3, in_channels=self.encoder.out_channel,block=block)
+            self.ll_decoder = decoder_lite3(out_channels=3, in_channels=self.encoder.out_channel,block=block)
             # self.ll_decoder = decoder_lite2(out_channels=3, in_channels=self.encoder.out_channel,block=block)
             # self.ll_decoder = decoder(out_channels=3,in_channels=[75,75,75,512],block = block)
             # self.detail_decoder = decoder(out_channels=9,out_act=nn.Tanh(),block = block)
             # self.detail_decoder = decoder(out_channels=9,out_act=nn.Identity(),in_channels=self.encoder.out_channel,inner_channels=[16,32,64,128],block = block)
-            self.detail_decoder = decoder(out_channels=9,out_act=nn.Identity(),in_channels=self.encoder.out_channel,inner_channels=[16,32,64,128],block = block)
+            # self.detail_decoder = decoder(out_channels=9,out_act=nn.Identity(),in_channels=self.encoder.out_channel,inner_channels=[16,32,64,128],block = block)
+            self.detail_decoder = decoder_lite3(out_channels=9,out_act=nn.Identity(),in_channels=self.encoder.out_channel,inner_channels=[16,32,64,128],block = block)
             # self.detail_decoder = decoder_lite2(out_channels=9,out_act=nn.Identity(),in_channels=self.encoder.out_channel,inner_channels=[16,32,64,128],block = block)
             # self.detail_decoder = decoder(out_channels=9,in_channels=[75,75,75,512],out_act=nn.Identity(),inner_channels=[16,32,64,128],block = block)
         else:
@@ -2733,6 +3107,7 @@ class UNet_wavelet(nn.Module):
             # self.xfm = SWTForward(requires_grad=False) # Accepts all wave types available to PyWavelets
             self.ifm = model.ifm
             self.idwt = True
+            self.out_ = False
 
             # self.ll_decoder = decoder(out_channels=3, in_channels=self.encoder.out_channel,block=block)
             self.ll_decoder = model.ll_decoder.export_model()
@@ -2835,7 +3210,10 @@ class UNet_wavelet(nn.Module):
             recon_B = torch.clamp(recon_B, min=0, max=1)
             output_map = torch.cat((recon_R, recon_G, recon_B), dim=1)
             # return (output_map, ((out_ll,out_ll_scale1,out_ll_scale2), out_detail), enc2, enc3, enc4)
-            return (output_map, (out_ll, out_detail), torch.concat((dec2_out_ll,dec2_out_detail),dim=1), torch.concat((dec3_out_ll, dec3_out_detail), dim=1))
+            if self.out_:
+                return output_map
+            else:
+                return (output_map, (out_ll, out_detail), torch.concat((dec2_out_ll,dec2_out_detail),dim=1), torch.concat((dec3_out_ll, dec3_out_detail), dim=1))
         else:
             return out_ll, out_detail,torch.concat((dec2_out_ll,dec2_out_detail),dim=1), torch.concat((dec3_out_ll, dec3_out_detail), dim=1)
     def forward_stage_0(self,x):
@@ -2854,16 +3232,16 @@ class UNet_wavelet(nn.Module):
     def forward_stage_4(self, out_ll,out_detail):
         recon_R = self.ifm(torch.cat((out_ll[:, [0]], out_detail[:, 0:3]), dim=1))
         # recon_R = (recon_R - torch.min(recon_R))/(torch.max(recon_R) - torch.min(recon_R))
-        recon_R = torch.clamp(recon_R, min=0, max=1)
+        recon_R = torch.clamp(recon_R, min=-1, max=1)
         # recon_R = self.out_act(recon_R)
         recon_G = self.ifm(torch.cat((out_ll[:, [1]], out_detail[:, 3:6]), dim=1))
         # recon_G = (recon_G - torch.min(recon_G))/(torch.max(recon_G) - torch.min(recon_G))
         # recon_G = self.out_act(recon_G)
-        recon_G = torch.clamp(recon_G, min=0, max=1)
+        recon_G = torch.clamp(recon_G, min=-1, max=1)
         recon_B = self.ifm(torch.cat((out_ll[:, [2]], out_detail[:, 6:9]), dim=1))
         # recon_B = (recon_B - torch.min(recon_B))/(torch.max(recon_B) - torch.min(recon_B))
         #         recon_B = self.out_act(recon_B)
-        recon_B = torch.clamp(recon_B, min=0, max=1)
+        recon_B = torch.clamp(recon_B, min=-1, max=1)
         output_map = torch.cat((recon_R, recon_G, recon_B), dim=1)
         return output_map
 

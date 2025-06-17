@@ -41,11 +41,15 @@ def main(args):
             model.idwt = False
         else:
             model.load_state_dict(torch.load(args.weight_path,map_location="cpu")["state_dict"])
+            # model.out_ = True
     pytorch_total_params = sum(p.numel() for p in model.parameters())
     print(pytorch_total_params)
     if args.half:
         model = model.half()
     model.eval()
+    # model = model.to(device)
+    # script_model = torch.jit.script(model)
+    # torch.jit.save(script_model, f"mp_s3_si_litedec3_{device}.zip")
     torch_input = torch.randn(1, 3, args.TRANSFROM_SCALES,args.TRANSFROM_SCALES).to(device)
     if args.half:
         torch_input = torch_input.to(device).half()
@@ -63,9 +67,9 @@ def main(args):
 
 def opt_args():
     args = argparse.ArgumentParser()
-    args.add_argument('--weight_path', type=str, default="output_lite3/_UNet_wavelet_10/model_best.pth",
+    args.add_argument('--weight_path', type=str, default="output/RESIDE-6K_UNet_wavelet_157/model_best.pth",
                       help='Path to model weight')
-    args.add_argument('--OUTPUT_ONNX', type=str, default="s3_si_litedec3_2.onnx",
+    args.add_argument('--OUTPUT_ONNX', type=str, default="mp_s3_si_litedec3.onnx",
                       help='Output onnx')
     args.add_argument('--TRANSFROM_SCALES', type=int, default=256,
                       help='train img size')

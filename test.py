@@ -17,6 +17,7 @@ import time
 from IQA_pytorch import CW_SSIM
 from fvcore.nn import FlopCountAnalysis
 from collections import OrderedDict
+import shutil
 
 def check_dir(path,n=0):
     if (not os.path.exists(path)) and n==0:
@@ -46,6 +47,7 @@ def main(args):
         net = importlib.util.module_from_spec(spec)
         sys.modules["net"] = net
         spec.loader.exec_module(net)
+        # import net
         model = net.UNet_wavelet()
         # state_dict = torch.load(args.weight_path)["state_dict"]
         # new_state_dict= {}
@@ -56,6 +58,8 @@ def main(args):
         #     new_state_dict[name] = v  # 新字典的key值对应的value为一一对应的值。
         # model.load_state_dict(new_state_dict)
         model.load_state_dict(torch.load(args.weight_path)["state_dict"])
+        # model = model.export_model()
+        # model.load_state_dict(torch.load(os.path.join(model_path,"exported_model.pth"))["state_dict"])
     else:
         model = torch.load(args.weight_path)
     # model = UNet()
@@ -68,11 +72,11 @@ def main(args):
         model.half()
     model.to(device)
     model.eval()
-    # input = torch.randn(1, 3, args.TRANSFROM_SCALES,args.TRANSFROM_SCALES).to(device)
-    # if args.half:
-    #     input = input.half()
-    # flops = FlopCountAnalysis(model, input)
-    # print(flops.total()/1000/1000/1000)
+    input = torch.randn(1, 3, args.TRANSFROM_SCALES,args.TRANSFROM_SCALES).to(device)
+    if args.half:
+        input = input.half()
+    flops = FlopCountAnalysis(model, input)
+    print(flops.total()/1000/1000/1000)
     model_name = model.__class__.__name__
     print(model_name)
     test_data = PairLoader(args.DATA_PATH, 'test', 'valid',
@@ -96,7 +100,8 @@ def main(args):
     print("test_loader", len(test_loader))
 
     total_loss = 0.
-    total_psnr = 0.
+    name_psnr = []
+    total_psnr = []
     total_ll_psnr = 0.
     total_detail_psnr = 0.
     total_ssim = 0.
@@ -118,6 +123,8 @@ def main(args):
     if args.half:
         # sfm.half()
         ifm.half()
+    if args.OUTPUT_file is not None:
+        f = open(args.OUTPUT_file, "w")
     for batch_idx, batch in tqdm.tqdm(enumerate(test_loader)):
         with torch.no_grad():
             img_idx, label_idx ,names= batch["source"], batch["target"],batch["filename"]
@@ -134,10 +141,11 @@ def main(args):
             ll_label = coeffs[:, [0, 4, 8]]
             detail_label = coeffs[:, [1, 2, 3, 5, 6, 7, 9, 10, 11]]
             start_time = time.time()
-            (output_map,enc1, enc2, enc3, enc4) = model(img)
+            output = model(img)
+            output_map = output[0]
             end_time = time.time()
             total_time.append(end_time - start_time)
-            out_ll,out_detail = enc1
+            out_ll,out_detail = output[1]
 
             # ll = ll[0]
             # recon_R = ifm(torch.cat((ll[:, [0]], detail[:, 0:3]), dim=1))
@@ -149,7 +157,10 @@ def main(args):
                 out_detail = out_detail.to(torch.float32)
                 output_map = output_map.to(torch.float32)
 
-            total_psnr += (10 * torch.log10(1 / F.mse_loss(output_map, label)).item())
+            total_psnr.append(10 * torch.log10(1 / F.mse_loss(output_map, label)).item())
+            psnr = (10 * torch.log10(1 / F.mse_loss(output_map, label)).item())
+            if args.OUTPUT_file is not None:
+                f.write(f"{names[0]},{psnr},{SsimLoss(output_map, label).item()}\n")
             total_ll_psnr += (10 * torch.log10(1 / F.mse_loss(out_ll, ll_label)).item())
             total_detail_psnr += (10 * torch.log10(1 / F.mse_loss(out_detail, detail_label)).item())
             total_ssim += (SsimLoss(output_map, label).item())
@@ -159,13 +170,14 @@ def main(args):
             total_ll_cw_ssim += (Cw_SsimLoss_L.cw_ssim(out_ll, ll_label).item())
             total_detail_cw_ssim += (Cw_SsimLoss_D.cw_ssim(out_detail, detail_label).item())
             memory_use.append((torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024)+(torch.cuda.memory_reserved(0) / 1024 / 1024 / 1024)+(torch.cuda.max_memory_reserved(0) / 1024 / 1024 / 1024))
+            name_psnr.append([names[0],psnr])
             # for out_img,lls,details,hz_img,gt_img,name in zip(output_map,out_ll,out_detail,img,label,names):
             #     if not os.path.exists(ab_test_dir):
             #         os.makedirs(ab_test_dir)
             #     out_image = transform(out_img)
             #     out_image = np.asarray(out_image)
             #     out_image = Image.fromarray(out_image)
-            #     out_image.save(os.path.join(ab_test_dir, name))
+            #     out_image.save(os.path.join(ab_test_dir, "out_" + name))
             #     hz_image = transform(hz_img)
             #     hz_image = np.asarray(hz_image)
             #     hz_image = Image.fromarray(hz_image)
@@ -194,25 +206,72 @@ def main(args):
                 # hh_image = Image.fromarray(hh_image)
                 # hh_image.save(os.path.join(ab_test_dir, "hh_" + name))
 
-
-
+    if args.OUTPUT_file is not None:
+        f.close()
     print("############################")
-    print("SSMI ", total_ssim/len(test_loader),"CW_SSMI ", total_cw_ssim/len(test_loader) ,"PSNR ",total_psnr/len(test_loader))
+    print("SSMI ", total_ssim/len(test_loader),"CW_SSMI ", total_cw_ssim/len(test_loader) ,"PSNR ",np.mean(total_psnr))
     print("LL_SSMI ", total_ll_ssim / len(test_loader),"LL_CW_SSMI ", total_ll_cw_ssim / len(test_loader), "LL_PSNR ",
           total_ll_psnr / len(test_loader))
     print("Detail_SSMI ", total_detail_ssim / len(test_loader),"Detail_CW_SSMI ", total_detail_cw_ssim / len(test_loader), "Detail_PSNR ",
           total_detail_psnr / len(test_loader))
     print("avg inference time:",np.mean(total_time))
     print("avg GPU Memory:", np.mean(memory_use))
+    q25,q50, q75 = np.percentile(total_psnr, [25, 50,75])
+    bin_width = 2 * (q75 - q25) * len(total_psnr) ** (-1 / 3)
+    bins = round((max(total_psnr) - min(total_psnr)) / bin_width)
+    print(bins)
+    print("Freedman–Diaconis number of bins:", bins)
+    height, bins, patches = plt.hist(total_psnr, bins=bins)
+
+    ticks = [(patch.get_x() + (patch.get_x() + patch.get_width())) / 2 for patch in patches]  ## or ticklabels
+
+    ticklabels = (bins[1:] + bins[:-1]) / 2  ## or ticks
+
+    plt.xticks(ticks, np.round(ticklabels, 2), rotation=90)
+
+    # 在 x 軸上畫出垂直線
+    plt.axvline(x=q25, color='red', linestyle='--', linewidth=2)
+    plt.text(q25, plt.ylim()[1] * 0.6, "25%={:.2f}".format(q25), color='red', rotation=90, ha='right')
+    plt.axvline(x=q75, color='red', linestyle='--', linewidth=2)
+    plt.text(q75, plt.ylim()[1] * 0.6, "75%={:.2f}".format(q75), color='red', rotation=90, ha='right')
+    plt.axvline(x=q50, color='red', linestyle='--', linewidth=2)
+    plt.text(q50, plt.ylim()[1] * 0.6, "50%={:.2f}".format(q50), color='red', rotation=90, ha='right')
+    plt.axvline(x=np.mean(total_psnr), color='blue', linestyle='--', linewidth=2)
+    plt.text(np.mean(total_psnr), plt.ylim()[1] * 0.9, "mean={:.2f}".format(np.mean(total_psnr)), color='blue', rotation=90, ha='right')
+    plt.savefig('result.png')
+    # if not os.path.exists(os.path.join(ab_test_dir,"25")):
+    #     os.makedirs(os.path.join(ab_test_dir,"25"))
+    # if not os.path.exists(os.path.join(ab_test_dir,"50")):
+    #     os.makedirs(os.path.join(ab_test_dir,"50"))
+    # if not os.path.exists(os.path.join(ab_test_dir,"75")):
+    #     os.makedirs(os.path.join(ab_test_dir,"75"))
+    # for (name,psnr) in tqdm.tqdm(name_psnr):
+    #     if psnr <= q25:
+    #         shutil.copyfile(os.path.join(ab_test_dir, "out_" + name), os.path.join(os.path.join(ab_test_dir,"25"), "out_" + name))
+    #         shutil.copyfile(os.path.join(ab_test_dir, "hz_" + name), os.path.join(os.path.join(ab_test_dir,"25"), "hz_" + name))
+    #         shutil.copyfile(os.path.join(ab_test_dir, "gz_" + name), os.path.join(os.path.join(ab_test_dir,"25"), "gz_" + name))
+    #     elif psnr <= q75:
+    #         shutil.copyfile(os.path.join(ab_test_dir, "out_" + name), os.path.join(os.path.join(ab_test_dir,"50"), "out_" + name))
+    #         shutil.copyfile(os.path.join(ab_test_dir, "hz_" + name), os.path.join(os.path.join(ab_test_dir,"50"), "hz_" + name))
+    #         shutil.copyfile(os.path.join(ab_test_dir, "gz_" + name), os.path.join(os.path.join(ab_test_dir,"50"), "gz_" + name))
+    #     else:
+    #         shutil.copyfile(os.path.join(ab_test_dir, "out_" + name),
+    #                         os.path.join(os.path.join(ab_test_dir, "75"), "out_" + name))
+    #         shutil.copyfile(os.path.join(ab_test_dir, "hz_" + name),
+    #                         os.path.join(os.path.join(ab_test_dir, "75"), "hz_" + name))
+    #         shutil.copyfile(os.path.join(ab_test_dir, "gz_" + name),
+    #                         os.path.join(os.path.join(ab_test_dir, "75"), "gz_" + name))
+
 
 def opt_args():
     args = argparse.ArgumentParser()
     args.add_argument('--DATA_PATH', type=str, default="/mnt/d/Train Data/dz_data/RESIDE-6K",
                       help='Path to Dataset')
-    args.add_argument('--weight_path', type=str, default="output/RESIDE-6K_UNet_wavelet_56/model_best.pth",
+    args.add_argument('--weight_path', type=str, default="output/RESIDE-6K_UNet_wavelet_160/model_best.pth",
                       help='Path to model weight')
     args.add_argument('--OUTPUT_PATH', type=str, default="./result",
-
+                      help='Output Path')
+    args.add_argument('--OUTPUT_file', type=str, default="./result.csv",
                       help='Output Path')
     args.add_argument('--TRANSFROM_SCALES', type=int, default=256,
                       help='train img size')

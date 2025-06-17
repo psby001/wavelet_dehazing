@@ -57,13 +57,26 @@ def save_model(model,path,name,net = "net.py"):
 
 def main(args,seed = 2552,n = ""):
     set_seed(seed)
-    from dz_datasets.loader import PairLoader
-    train_data = PairLoader(args.DATA_PATH, 'train', 'train',
-                               (args.TRANSFROM_SCALES,args.TRANSFROM_SCALES))
+    # from dz_datasets.loader import PairLoader
+    # train_data = PairLoader(args.DATA_PATH, 'train', 'train',
+    #                            (args.TRANSFROM_SCALES,args.TRANSFROM_SCALES))
+    # train_loader = Data.DataLoader(train_data, batch_size=args.BATCH_SIZE,
+    #                              shuffle=True, num_workers=4, pin_memory=True)
+    # val_data = PairLoader(args.DATA_PATH, 'test', 'valid',
+    #                            (args.TRANSFROM_SCALES,args.TRANSFROM_SCALES))
+    # val_loader = Data.DataLoader(val_data, batch_size=args.BATCH_SIZE,
+    #                              shuffle=False, num_workers=4, pin_memory=True)
+    from dz_datasets.loader_gnet import PairLoader
+    train_data = PairLoader(os.path.join(args.DATA_PATH,"train"), 'train',
+                               args.TRANSFROM_SCALES,
+                               0.1,
+                               False,
+                               False)
+
+    val_data = PairLoader(os.path.join(args.DATA_PATH,"test"), "valid",
+                             args.TRANSFROM_SCALES)
     train_loader = Data.DataLoader(train_data, batch_size=args.BATCH_SIZE,
-                                 shuffle=True, num_workers=4, pin_memory=True)
-    val_data = PairLoader(args.DATA_PATH, 'test', 'valid',
-                               (args.TRANSFROM_SCALES,args.TRANSFROM_SCALES))
+                                   shuffle=True, num_workers=4, pin_memory=True)
     val_loader = Data.DataLoader(val_data, batch_size=args.BATCH_SIZE,
                                  shuffle=False, num_workers=4, pin_memory=True)
     device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
@@ -82,7 +95,7 @@ def main(args,seed = 2552,n = ""):
         sys.modules["net"] = model
         spec.loader.exec_module(model)
         net = model.UNet_wavelet()
-        # net.load_state_dict(torch.load(args.weight_path)["state_dict"])
+        net.load_state_dict(torch.load(args.weight_path)["state_dict"])
     else:
         # import net
         import importlib
@@ -115,10 +128,10 @@ def main(args,seed = 2552,n = ""):
 
     # Optimizer
     # optimizer = torch.optim.SGD(net.parameters(), lr=args.INIT_LEARNING_RATE,momentum = args.MOMENTUM, weight_decay=args.DECAY)
-    optimizer = torch.optim.AdamW(net.parameters(), lr=args.INIT_LEARNING_RATE)
-
+    optimizer = torch.optim.AdamW(net.parameters(), lr=args.INIT_LEARNING_RATE,weight_decay=args.DECAY)
     # Scheduler, For each 50 epoch, decay 0.1
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=args.MAX_EPOCHS//3, gamma=0.1)
+    # scheduler = lr_scheduler.StepLR(optimizer, step_size=args.MAX_EPOCHS//3, gamma=0.1)
+    scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.MAX_EPOCHS,eta_min = args.INIT_LEARNING_RATE * 1e-2)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=MAX_ITER,
     #                                                        eta_min=INIT_LEARNING_RATE * 1e-2)
 
@@ -296,18 +309,18 @@ def opt_args():
     args = argparse.ArgumentParser()
     args.add_argument('--DATA_PATH', type=str, default="/mnt/d/Train Data/dz_data/RESIDE-6K",
                       help='Path to Dataset')
-    args.add_argument('--weight_path', type=str, help='Path to model weight')
-    args.add_argument('--DECAY', type=float, default=5e-5)
+    args.add_argument('--weight_path', type=str,default="output/RESIDE-6K_UNet_wavelet_159/model_best.pth", help='Path to model weight')
+    args.add_argument('--DECAY', type=float, default=0.01)
     args.add_argument('--MOMENTUM', type=float, default=0.90)
     args.add_argument('--OUTPUT_PATH', type=str, default="./output",
                       help='Output Path')
-    args.add_argument('--BATCH_SIZE', type=int, default=32,
+    args.add_argument('--BATCH_SIZE', type=int, default=64,
                         help='Batch size')
     args.add_argument('--TRANSFROM_SCALES', type=int, default=256,
                       help='train img size')
-    args.add_argument('--INIT_LEARNING_RATE', type=float, default=5e-3,
+    args.add_argument('--INIT_LEARNING_RATE', type=float, default=8e-4,
                       help='Init learning rate')
-    args.add_argument('--MAX_EPOCHS', type=int, default=150,
+    args.add_argument('--MAX_EPOCHS', type=int, default=1000,
                       help='train Epochs')
     return args.parse_args()
 
