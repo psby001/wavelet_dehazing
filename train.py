@@ -16,9 +16,9 @@ from wavelet import wt_m,iwt_m
 from IQA_pytorch import CW_SSIM
 import shutil
 import random
-def save_state_dict_with_model(state_dict,path,name,net = "net.py"):
+def save_state_dict_with_model(model_name,model,path,name,net = "net.py"):
     # torch.save(state_dict, os.path.join(path,name))
-    torch.save({'state_dict': state_dict}, os.path.join(path, name))
+    torch.save({'state_dict': model.state_dict(),'model_name': model_name}, os.path.join(path, name))
     if not os.path.exists(os.path.join(path,net)):
         print('Saving in',path)
         shutil.copy2(net, os.path.join(path, "net.py"))
@@ -46,11 +46,11 @@ def check_path(path,n=0):
         n+=1
         return check_path(path,n)
 
-def save_model(model,path,name,net = "net.py"):
+def save_model(model_name,model,path,name,net = "net.py"):
     if (not os.path.exists(path)):
         os.makedirs(path)
     # torch.save(net, os.path.join(path,save_state_dict_with_modelname))
-    save_state_dict_with_model(model.state_dict(),path,name,net = net)
+    save_state_dict_with_model(model_name,model,path,name,net = net)
 
 
 
@@ -94,7 +94,8 @@ def main(args,seed = 2552,n = ""):
         model = importlib.util.module_from_spec(spec)
         sys.modules["net"] = model
         spec.loader.exec_module(model)
-        net = model.UNet_wavelet()
+        # net = model.UNet_wavelet()
+        net = eval("model." + args.model)()
         net.load_state_dict(torch.load(args.weight_path)["state_dict"])
     else:
         # import net
@@ -105,8 +106,9 @@ def main(args,seed = 2552,n = ""):
         model = importlib.util.module_from_spec(spec)
         sys.modules["net"] = model
         spec.loader.exec_module(model)
-        net = model.UNet_wavelet()
-    model_name = net.__class__.__name__
+        # net = model.UNet_wavelet()
+        net = eval("model." + args.model)()
+    model_name = args.model
     print(model_name)
     dataset_name = args.DATA_PATH.split('/')[-1]
     SAVE_PATH = os.path.join("./output", dataset_name+"_"+model_name)
@@ -172,12 +174,15 @@ def main(args,seed = 2552,n = ""):
             ll_label = coeffs[:, [0, 4, 8]]
             # ll_scale1_label, ll_scale2_label = net.ll_scale(label)
             detail_label = coeffs[:, [1, 2, 3, 5, 6, 7, 9, 10, 11]]
-            # label = detail_label
+            coeffs_1 = sfm(ll_label)
+            ll_label_1 = coeffs_1[:, [0, 4, 8]]
+            detail_label_1 = coeffs_1[:, [1, 2, 3, 5, 6, 7, 9, 10, 11]]
             with autocast(device_type="cuda", dtype=torch.float16):
-                out = net(img)
-                # out_label = net(label)
-                output_map = out[0]
-                out_ll,out_detail = out[1]
+                # out = net(img)
+                # # out_label = net(label)
+                # output_map, = out[0]
+                # out_ll,out_detail = out[1]
+
                 # out_dec2 = out[2]
                 # out_dec3 = out[3]
                 # label_out_dec2 = out_label[2]
@@ -186,8 +191,18 @@ def main(args,seed = 2552,n = ""):
                 # (output_l,enc1_l, enc2_l, enc3_l, enc4_l) = net(label)
                 # loss = criterion(output_map, label)
                 # loss = 0.5 * criterion(out_ll,ll_label) + 0.5 * criterion(out_detail,detail_label) + 0.5 * criterion(out_ll_scale1,ll_scale1_label) + 0.5 * criterion(out_ll_scale2,ll_scale2_label) + criterion(output_map,label)
-                loss1 = criterion1(output_map, label) +  0.5 * criterion1(out_ll, ll_label) +  0.5 * criterion1(out_detail, detail_label)
-                loss2 = criterion2(output_map, label) +  0.5 * criterion2(out_ll, ll_label) +  0.5 * criterion2(out_detail, detail_label)
+                if args.model == "two_order_unet_wavelet":
+                    output_map, out_ll, out_detail_1, out_detail_2 = net(img)
+                    loss1 = criterion1(output_map, label) +  0.5 * criterion1(out_ll, ll_label_1) +  0.5 * criterion1(out_detail_1, detail_label) + 0.5 * criterion1(out_detail_2, detail_label_1)
+                    loss2 = criterion2(output_map, label) +  0.5 * criterion2(out_ll, ll_label_1) +  0.5 * criterion2(out_detail_1, detail_label) + 0.5 * criterion2(out_detail_2, detail_label_1)
+                else:
+                    out = net(img)
+                    output_map = out[0]
+                    out_ll,out_detail = out[1]
+                    loss1 = criterion1(output_map, label) + 0.5 * criterion1(out_ll, ll_label) + 0.5 * criterion1(
+                        out_detail, detail_label)
+                    loss2 = criterion2(output_map, label) + 0.5 * criterion2(out_ll, ll_label) + 0.5 * criterion2(
+                        out_detail, detail_label)
                 # loss3 = 0.1 * Cw_SsimLoss_D(out_detail, detail_label)
                 # loss2 = 0.4 * criterion2(out_dec2,label_out_dec2) + 0.2  * criterion2(out_dec3,label_out_dec3)
                 loss = loss1 + loss2
@@ -233,22 +248,44 @@ def main(args,seed = 2552,n = ""):
                 img_idx, label_idx = batch["source"], batch["target"]
                 img = img_idx.to(device)
                 label = label_idx.to(device)
+                # coeffs = sfm(label)
+                # ll_label = coeffs[:, [0, 4, 8]]
+                # # ll_scale1_label, ll_scale2_label = net.ll_scale(label)
+                # detail_label = coeffs[:, [1, 2, 3, 5, 6, 7, 9, 10, 11]]
+                # label = detail_label
                 coeffs = sfm(label)
                 ll_label = coeffs[:, [0, 4, 8]]
                 # ll_scale1_label, ll_scale2_label = net.ll_scale(label)
                 detail_label = coeffs[:, [1, 2, 3, 5, 6, 7, 9, 10, 11]]
-                # label = detail_label
+                coeffs_1 = sfm(ll_label)
+                ll_label_1 = coeffs_1[:, [0, 4, 8]]
+                detail_label_1 = coeffs_1[:, [1, 2, 3, 5, 6, 7, 9, 10, 11]]
                 with autocast(device_type="cuda", dtype=torch.float16):
-                    out = net(img)
-                    output_map = out[0]
-                    out_ll, out_detail = out[1]
+                    # out = net(img)
+                    # output_map = out[0]
+                    # out_ll, out_detail = out[1]
                     # loss = criterion(output_map, label)
                     # (output_l,enc1_l, enc2_l, enc3_l, enc4_l) = net(label)
                     # loss = criterion(output_map, label)
                     # loss = 0.5 * criterion(out_ll,ll_label) + 0.5 * criterion(out_detail,detail_label) + 0.5 * criterion(out_ll_scale1,ll_scale1_label) + 0.5 * criterion(out_ll_scale2,ll_scale2_label) + criterion(output_map,label)
-                    loss1 = criterion1(output_map, label) +  0.5 * criterion1(out_ll, ll_label) +  0.5 * criterion1(out_detail, detail_label)
-                    loss2 = criterion2(output_map, label) + 0.5 * criterion2(out_ll, ll_label) + 0.5 * criterion2(
-                        out_detail, detail_label)
+                    # loss1 = criterion1(output_map, label) +  0.5 * criterion1(out_ll, ll_label) + 0.5 * criterion1(out_detail, detail_label)
+                    # loss2 = criterion2(output_map, label) + 0.5 * criterion2(out_ll, ll_label) + 0.5 * criterion2(
+                    #     out_detail, detail_label)
+                    if args.model == "two_order_unet_wavelet":
+                        output_map, out_ll, out_detail_1, out_detail_2 = net(img)
+                        loss1 = criterion1(output_map, label) + 0.5 * criterion1(out_ll, ll_label_1) + 0.5 * criterion1(
+                            out_detail_1, detail_label) + 0.5 * criterion1(out_detail_2, detail_label_1)
+                        loss2 = criterion2(output_map, label) + 0.5 * criterion2(out_ll, ll_label_1) + 0.5 * criterion2(
+                            out_detail_1, detail_label) + 0.5 * criterion2(out_detail_2, detail_label_1)
+                    else:
+                        out = net(img)
+                        output_map = out[0]
+                        out_ll, out_detail = out[1]
+                        loss1 = criterion1(output_map, label) + 0.5 * criterion1(out_ll, ll_label) + 0.5 * criterion1(
+                            out_detail, detail_label)
+                        loss2 = criterion2(output_map, label) + 0.5 * criterion2(out_ll, ll_label) + 0.5 * criterion2(
+                            out_detail, detail_label)
+
                     loss = loss1 + loss2
                     # loss = criterion(output_map, label) + criterion(out_ll, ll_label) + 0.1 * Cw_SsimLoss_D(
                     #     out_detail, detail_label) + criterion(out_detail, detail_label)
@@ -273,11 +310,11 @@ def main(args,seed = 2552,n = ""):
             loss_pre = np.mean(loss_total)
             # torch.save({'state_dict': model_engine.state_dict()}, os.path.join(ab_test_dir, 'model_best.pth'))
             max_id = epoch
-            save_model(net, ab_test_dir, 'model_best.pth',net = "net"+n+".py")
+            save_model(model_name,net, ab_test_dir, 'model_best.pth',net = "net"+n+".py")
 
         if epoch % 10 == 0:
             # torch.save({'state_dict': model_engine.state_dict()}, os.path.join(ab_test_dir, 'model' + str(epoch) + '.pth'))
-            save_model(net,ab_test_dir,'model' + str(epoch) + '.pth',net = "net"+n+".py")
+            save_model(model_name,net,ab_test_dir,'model' + str(epoch) + '.pth',net = "net"+n+".py")
         if np.nanmean(psnr) > bestpsnr :
             bestpsnr = np.nanmean(psnr)
     fig = plt.figure(figsize=(30, 15))
@@ -307,9 +344,11 @@ def main(args,seed = 2552,n = ""):
 
 def opt_args():
     args = argparse.ArgumentParser()
+    args.add_argument('--model', type=str, default="two_order_unet_wavelet",
+                      help='Path to Dataset')
     args.add_argument('--DATA_PATH', type=str, default="/mnt/d/Train Data/dz_data/RESIDE-6K",
                       help='Path to Dataset')
-    args.add_argument('--weight_path', type=str,default="output/RESIDE-6K_UNet_wavelet_159/model_best.pth", help='Path to model weight')
+    args.add_argument('--weight_path', type=str, help='Path to model weight')
     args.add_argument('--DECAY', type=float, default=0.01)
     args.add_argument('--MOMENTUM', type=float, default=0.90)
     args.add_argument('--OUTPUT_PATH', type=str, default="./output",
