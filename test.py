@@ -34,37 +34,38 @@ def check_dir(path,n=0):
 
 
 def main(args):
-    TRANSFROM_SCALES = (args.TRANSFROM_SCALES, args.TRANSFROM_SCALES)
+    TRANSFROM_SCALES = (256,256)
     dataset_name = args.DATA_PATH.split('/')[-1]
     ab_test_dir = check_dir(os.path.join(args.OUTPUT_PATH, dataset_name))
 
     model_path = args.weight_path.rsplit("/",1)[0]
-    if os.path.exists(os.path.join(model_path, "net.py")):
-        print("Loading weights from {}".format(model_path))
-        import importlib
-        import sys
-        spec = importlib.util.spec_from_file_location("net", os.path.join(model_path, "net.py"))
-        net = importlib.util.module_from_spec(spec)
-        sys.modules["net"] = net
-        spec.loader.exec_module(net)
-        # import net
-        model = net.UNet_wavelet()
-        # state_dict = torch.load(args.weight_path)["state_dict"]
-        # new_state_dict= {}
-        # for k, v in state_dict.items():
-        #     if "strip_att.fushion" in k:
-        #         continue
-        #     name = k
-        #     new_state_dict[name] = v  # 新字典的key值对应的value为一一对应的值。
-        # model.load_state_dict(new_state_dict)
-        model.load_state_dict(torch.load(args.weight_path)["state_dict"])
-        # model = model.export_model()
-        # model.load_state_dict(torch.load(os.path.join(model_path,"exported_model.pth"))["state_dict"])
-    else:
-        model = torch.load(args.weight_path)
-    # model = UNet()
-    # model = torch.load(args.weight_path)
-    # model.load_state_dict(torch.load(weight_path)["state_dict"])
+    # if os.path.exists(os.path.join(model_path, "net.py")):
+    #     print("Loading weights from {}".format(model_path))
+    #     import importlib
+    #     import sys
+    #     spec = importlib.util.spec_from_file_location("net", os.path.join(model_path, "net.py"))
+    #     net = importlib.util.module_from_spec(spec)
+    #     sys.modules["net"] = net
+    #     spec.loader.exec_module(net)
+    #     # import net
+    #     model = net.UNet_wavelet()
+    #     # state_dict = torch.load(args.weight_path)["state_dict"]
+    #     # new_state_dict= {}
+    #     # for k, v in state_dict.items():
+    #     #     if "strip_att.fushion" in k:
+    #     #         continue
+    #     #     name = k
+    #     #     new_state_dict[name] = v  # 新字典的key值对应的value为一一对应的值。
+    #     # model.load_state_dict(new_state_dict)
+    #     model.load_state_dict(torch.load(args.weight_path,map_location='cuda:0')["state_dict"])
+    #     # model = model.export_model()
+    #     # model.load_state_dict(torch.load(os.path.join(model_path,"exported_model.pth"))["state_dict"])
+    # else:
+    #     model = torch.load(args.weight_path)
+
+    import net
+    model = net.two_order_UNet_wavelet()
+
     pytorch_total_params = sum(p.numel() for p in model.parameters())
     print(pytorch_total_params)
     device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
@@ -84,18 +85,18 @@ def main(args):
     test_loader = Data.DataLoader(test_data, batch_size=1,
                                  shuffle=False, num_workers=4, pin_memory=True)
 
-    Cw_SsimLoss = CW_SSIM(imgSize=TRANSFROM_SCALES, channels=3, level=4, ori=8)
-    Cw_SsimLoss_L = CW_SSIM(imgSize=(args.TRANSFROM_SCALES//2, args.TRANSFROM_SCALES//2), channels=3, level=4, ori=8)
-    Cw_SsimLoss_D = CW_SSIM(imgSize=(args.TRANSFROM_SCALES//2, args.TRANSFROM_SCALES//2), channels=9, level=4, ori=8)
+    # Cw_SsimLoss = CW_SSIM(imgSize=TRANSFROM_SCALES, channels=3, level=4, ori=8)
+    # Cw_SsimLoss_L = CW_SSIM(imgSize=(TRANSFROM_SCALES[0]//2, TRANSFROM_SCALES[1]//2), channels=3, level=4, ori=8)
+    # Cw_SsimLoss_D = CW_SSIM(imgSize=(TRANSFROM_SCALES[0]//2, TRANSFROM_SCALES[1]//2), channels=9, level=4, ori=8)
     SsimLoss = pytorch_ssim.SSIM()
     # if args.half:
     #     Cw_SsimLoss.half()
     #     Cw_SsimLoss_L.half()
     #     Cw_SsimLoss_D.half()
     #     SsimLoss.half()
-    Cw_SsimLoss.to(device)
-    Cw_SsimLoss_L.to(device)
-    Cw_SsimLoss_D.to(device)
+    # Cw_SsimLoss.to(device)
+    # Cw_SsimLoss_L.to(device)
+    # Cw_SsimLoss_D.to(device)
     SsimLoss.to(device)
     print("test_loader", len(test_loader))
 
@@ -124,7 +125,7 @@ def main(args):
         # sfm.half()
         ifm.half()
     if args.OUTPUT_file is not None:
-        f = open(args.OUTPUT_file, "w")
+        f = open(os.path.join(ab_test_dir,args.OUTPUT_file), "w")
     for batch_idx, batch in tqdm.tqdm(enumerate(test_loader)):
         with torch.no_grad():
             img_idx, label_idx ,names= batch["source"], batch["target"],batch["filename"]
@@ -166,26 +167,26 @@ def main(args):
             total_ssim += (SsimLoss(output_map, label).item())
             total_ll_ssim += (SsimLoss(out_ll, ll_label).item())
             total_detail_ssim += (SsimLoss(out_detail, detail_label).item())
-            total_cw_ssim += (Cw_SsimLoss.cw_ssim(output_map, label).item())
-            total_ll_cw_ssim += (Cw_SsimLoss_L.cw_ssim(out_ll, ll_label).item())
-            total_detail_cw_ssim += (Cw_SsimLoss_D.cw_ssim(out_detail, detail_label).item())
+            # total_cw_ssim += (Cw_SsimLoss.cw_ssim(output_map, label).item())
+            # total_ll_cw_ssim += (Cw_SsimLoss_L.cw_ssim(out_ll, ll_label).item())
+            # total_detail_cw_ssim += (Cw_SsimLoss_D.cw_ssim(out_detail, detail_label).item())
             memory_use.append((torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024)+(torch.cuda.memory_reserved(0) / 1024 / 1024 / 1024)+(torch.cuda.max_memory_reserved(0) / 1024 / 1024 / 1024))
             name_psnr.append([names[0],psnr])
-            # for out_img,lls,details,hz_img,gt_img,name in zip(output_map,out_ll,out_detail,img,label,names):
-            #     if not os.path.exists(ab_test_dir):
-            #         os.makedirs(ab_test_dir)
-            #     out_image = transform(out_img)
-            #     out_image = np.asarray(out_image)
-            #     out_image = Image.fromarray(out_image)
-            #     out_image.save(os.path.join(ab_test_dir, "out_" + name))
-            #     hz_image = transform(hz_img)
-            #     hz_image = np.asarray(hz_image)
-            #     hz_image = Image.fromarray(hz_image)
-            #     hz_image.save(os.path.join(ab_test_dir, "hz_" + name))
-            #     gz_image = transform(gt_img)
-            #     gz_image = np.asarray(gz_image)
-            #     gz_image = Image.fromarray(gz_image)
-            #     gz_image.save(os.path.join(ab_test_dir, "gz_" + name))
+            for out_img,lls,details,hz_img,gt_img,name in zip(output_map,out_ll,out_detail,img,label,names):
+                if not os.path.exists(ab_test_dir):
+                    os.makedirs(ab_test_dir)
+                out_image = transform(out_img)
+                out_image = np.asarray(out_image)
+                out_image = Image.fromarray(out_image)
+                out_image.save(os.path.join(ab_test_dir, "out_" + name))
+                hz_image = transform(hz_img)
+                hz_image = np.asarray(hz_image)
+                hz_image = Image.fromarray(hz_image)
+                hz_image.save(os.path.join(ab_test_dir, "hz_" + name))
+                gz_image = transform(gt_img)
+                gz_image = np.asarray(gz_image)
+                gz_image = Image.fromarray(gz_image)
+                gz_image.save(os.path.join(ab_test_dir, "gz_" + name))
                 # ll_image = transform(lls)
                 # ll_image = np.asarray(ll_image)
                 # ll_image = Image.fromarray(ll_image)
@@ -209,11 +210,15 @@ def main(args):
     if args.OUTPUT_file is not None:
         f.close()
     print("############################")
-    print("SSMI ", total_ssim/len(test_loader),"CW_SSMI ", total_cw_ssim/len(test_loader) ,"PSNR ",np.mean(total_psnr))
-    print("LL_SSMI ", total_ll_ssim / len(test_loader),"LL_CW_SSMI ", total_ll_cw_ssim / len(test_loader), "LL_PSNR ",
-          total_ll_psnr / len(test_loader))
-    print("Detail_SSMI ", total_detail_ssim / len(test_loader),"Detail_CW_SSMI ", total_detail_cw_ssim / len(test_loader), "Detail_PSNR ",
-          total_detail_psnr / len(test_loader))
+    print("SSMI ", total_ssim/len(test_loader),
+          # "CW_SSMI ", total_cw_ssim/len(test_loader) ,
+          "PSNR ",np.mean(total_psnr))
+    print("LL_SSMI ", total_ll_ssim / len(test_loader),
+          # "LL_CW_SSMI ", total_ll_cw_ssim / len(test_loader),
+          "LL_PSNR ", total_ll_psnr / len(test_loader))
+    print("Detail_SSMI ", total_detail_ssim / len(test_loader),
+          # "Detail_CW_SSMI ", total_detail_cw_ssim / len(test_loader),
+          "Detail_PSNR ",total_detail_psnr / len(test_loader))
     print("avg inference time:",np.mean(total_time))
     print("avg GPU Memory:", np.mean(memory_use))
     q25,q50, q75 = np.percentile(total_psnr, [25, 50,75])
@@ -267,11 +272,12 @@ def opt_args():
     args = argparse.ArgumentParser()
     args.add_argument('--DATA_PATH', type=str, default="/mnt/d/Train Data/dz_data/RESIDE-6K",
                       help='Path to Dataset')
-    args.add_argument('--weight_path', type=str, default="output/RESIDE-6K_UNet_wavelet_160/model_best.pth",
+    # args.add_argument('--weight_path', type=str, default="output/RESIDE-6K_UNet_wavelet_160/model_best.pth",
+    args.add_argument('--weight_path', type=str, default="./output/RESIDE-6K_UNet_wavelet_163/model_best.pth",
                       help='Path to model weight')
     args.add_argument('--OUTPUT_PATH', type=str, default="./result",
                       help='Output Path')
-    args.add_argument('--OUTPUT_file', type=str, default="./result.csv",
+    args.add_argument('--OUTPUT_file', type=str, default="result.csv",
                       help='Output Path')
     args.add_argument('--TRANSFROM_SCALES', type=int, default=256,
                       help='train img size')

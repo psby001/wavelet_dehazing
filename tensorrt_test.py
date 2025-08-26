@@ -7,10 +7,9 @@ import torch.utils.data as Data
 from torch.nn import functional as F
 from PIL import Image
 import tqdm
-from SWT import SWTForward,SWTInverse
 from wavelet import wt_m,iwt_m
 import math
-import torchvision.transforms as T
+# import torchvision.transforms as T
 import pytorch_ssim
 import matplotlib.pyplot as plt
 import time
@@ -55,16 +54,30 @@ def main(args):
     ab_test_dir = check_dir(os.path.join(args.OUTPUT_PATH, dataset_name))
     device = torch.device("cuda:0")
     logger = trt.Logger(trt.Logger.WARNING)
+
+
     builder = trt.Builder(logger)
         # trt_engine = trt.utils.load_engine(G_LOGGER, engine_path)
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
     parser = trt.OnnxParser(network, logger)
     success = parser.parse_from_file(args.weight_path)
     config = builder.create_builder_config()
+    if args.fp16:
+        config.set_flag(trt.BuilderFlag.FP16)
     # config.max_workspace_size = 1 << 30  # 1GB
     config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 1 << 30)
     # engine = builder.build_engine(network, config)
     engine = builder.build_engine_with_config(network, config)
+    with open(args.engine_path, "wb") as f:
+        f.write(engine.serialize())
+
+
+    # with open(args.engine_path, "rb") as fb:
+    #     new_serialized_engine = fb.read()
+    # runtime = trt.Runtime(logger)
+    # engine = runtime.deserialize_cuda_engine(new_serialized_engine)
+
+
     context = engine.create_execution_context()
     bindings = getBindings(engine, context,device)
     binding_addrs = OrderedDict((n, d.ptr) for n, d in bindings.items())
@@ -80,7 +93,7 @@ def main(args):
     Cw_SsimLoss_D = CW_SSIM(imgSize=(args.TRANSFROM_SCALES//2, args.TRANSFROM_SCALES//2), channels=9, level=4, ori=8).to(device)
     SsimLoss = pytorch_ssim.SSIM().to(device)
     print("test_loader", len(test_loader))
-    transform = T.ToPILImage()
+    # transform = T.ToPILImage()
     total_psnr = 0.
     total_ll_psnr = 0.
     total_detail_psnr = 0.
@@ -118,33 +131,21 @@ def main(args):
             context.execute_v2(list(binding_addrs.values()))
             end_time = time.time()
             total_time.append(end_time - start_time)
-            out_ll = bindings[keys[2]].data.to(torch.float).view(1, 3, 128, 128)
-            out_detail = bindings[keys[3]].data.to(torch.float).view(1, 9, 128, 128)
-            output_map = bindings[keys[1]].data.to(torch.float).view(1, 3, 256, 256)
-            coeffs = sfm(label)
-            ll_label = coeffs[:, [0, 4, 8]]
-            detail_label = coeffs[:, [1, 2, 3, 5, 6, 7, 9, 10, 11]]
+            output_map = bindings[keys[0]].data.to(torch.float).view(1, 3, 256, 256)
             # ll = ll[0]
             # recon_R = ifm(torch.cat((ll[:, [0]], detail[:, 0:3]), dim=1))
             # recon_G = ifm(torch.cat((ll[:, [1]], detail[:, 3:6]), dim=1))
             # recon_B = ifm(torch.cat((ll[:, [2]], detail[:, 6:9]), dim=1))
             # output_map = torch.cat((recon_R, recon_G, recon_B), dim=1)
             total_psnr += (10 * torch.log10(1 / F.mse_loss(output_map, label)).item())
-            total_ll_psnr += (10 * torch.log10(1 / F.mse_loss(out_ll, ll_label)).item())
-            total_detail_psnr += (10 * torch.log10(1 / F.mse_loss(out_detail, detail_label)).item())
             total_ssim += (SsimLoss(output_map, label).item())
-            total_ll_ssim += (SsimLoss(out_ll, ll_label).item())
-            total_detail_ssim += (SsimLoss(out_detail, detail_label).item())
-            total_cw_ssim += (Cw_SsimLoss.cw_ssim(output_map, label).item())
-            total_ll_cw_ssim += (Cw_SsimLoss_L.cw_ssim(out_ll, ll_label).item())
-            total_detail_cw_ssim += (Cw_SsimLoss_D.cw_ssim(out_detail, detail_label).item())
-            for out_img,lls,details,hz_img,gt_img,name in zip(output_map,out_ll,out_detail,img,label,names):
-                if not os.path.exists(ab_test_dir):
-                    os.makedirs(ab_test_dir)
-                out_image = transform(out_img)
-                out_image = np.asarray(out_image)
-                out_image = Image.fromarray(out_image)
-                out_image.save(os.path.join(ab_test_dir, name))
+            # for out_img,lls,details,hz_img,gt_img,name in zip(output_map,out_ll,out_detail,img,label,names):
+            #     if not os.path.exists(ab_test_dir):
+            #         os.makedirs(ab_test_dir)
+            #     out_image = transform(out_img)
+            #     out_image = np.asarray(out_image)
+            #     out_image = Image.fromarray(out_image)
+            #     out_image.save(os.path.join(ab_test_dir, name))
             #     hz_image = transform(hz_img)
             #     hz_image = np.asarray(hz_image)
             #     hz_image = Image.fromarray(hz_image)
@@ -177,25 +178,22 @@ def main(args):
 
 
     print("############################")
-    print("SSMI ", total_ssim/len(test_loader),"CW_SSMI ", total_cw_ssim/len(test_loader) ,"PSNR ",total_psnr/len(test_loader))
-    print("LL_SSMI ", total_ll_ssim / len(test_loader),"LL_CW_SSMI ", total_ll_cw_ssim / len(test_loader), "LL_PSNR ",
-          total_ll_psnr / len(test_loader))
-    print("Detail_SSMI ", total_detail_ssim / len(test_loader),"Detail_CW_SSMI ", total_detail_cw_ssim / len(test_loader), "Detail_PSNR ",
-          total_detail_psnr / len(test_loader))
+    print("SSMI ", total_ssim/len(test_loader),"PSNR ",total_psnr/len(test_loader))
     print("avg inference time:",np.mean(total_time))
-    print("avg GPU Memory:", np.mean(memory_use))
 
 def opt_args():
     args = argparse.ArgumentParser()
     args.add_argument('--DATA_PATH', type=str, default="/mnt/d/Train Data/dz_data/RESIDE-6K",
                       help='Path to Dataset')
-    args.add_argument('--weight_path', type=str, default="output_UNet_wavelet.onnx",
+    args.add_argument('--weight_path', type=str, default="super_lite.onnx",
+                      help='Path to model weight')
+    args.add_argument('--engine_path', type=str, default="super_lite.trt",
                       help='Path to model weight')
     args.add_argument('--OUTPUT_PATH', type=str, default="./result",
                       help='Output Path')
     args.add_argument('--TRANSFROM_SCALES', type=int, default=256,
                       help='train img size')
-    args.add_argument('--half', type=bool, default=False,
+    args.add_argument('--fp16', type=bool, default=False,
                       help='use float16')
     return args.parse_args()
 
