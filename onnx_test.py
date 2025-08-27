@@ -1,3 +1,16 @@
+"""
+使用方式：
+    python onnx_test.py --weight_path <模型權重路徑> --DATA_PATH <資料集路徑> \
+                        [--OUTPUT_PATH ./result] [--TRANSFROM_SCALES 256] [--half True]
+
+參數說明：
+    --weight_path      ONNX 權重檔路徑 (必填)
+    --DATA_PATH        測試資料集路徑 (必填)
+    --OUTPUT_PATH      輸出結果目錄，預設 ./result
+    --TRANSFROM_SCALES 輸入影像尺寸，預設 256
+    --half             是否使用半精度推論，預設 False
+"""
+
 import argparse
 import numpy as np
 import os
